@@ -1,6 +1,7 @@
 package org.eclipse.dse.core.telemetry;
 
 import org.eclipse.dse.edc.spi.telemetryagent.TelemetryServiceClient;
+import org.eclipse.edc.spi.iam.TokenRepresentation;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.retry.WaitStrategy;
 import org.eclipse.edc.spi.system.ExecutorInstrumentation;
@@ -19,18 +20,20 @@ import static org.eclipse.edc.statemachine.StateMachineConfiguration.DEFAULT_ITE
 public class TelemetryServiceCredentialManager {
 
     private static final long DEFAULT_RETRY_DELAY_SECONDS = 10L;
-    
+
     private final WaitStrategy waitStrategy = () -> DEFAULT_ITERATION_WAIT;
     private final AtomicBoolean active = new AtomicBoolean();
     private final int shutdownTimeout = 10;
     private final String name = getClass().toString();
 
+    private final boolean enabled;
     private final Monitor monitor;
     private final TelemetryServiceClient telemetryServiceClient;
     private final TokenCache cache;
     private final ScheduledExecutorService executor;
 
-    public TelemetryServiceCredentialManager(Monitor monitor, TelemetryServiceClient telemetryServiceClient, TokenCache cache, ExecutorInstrumentation instrumentation) {
+    public TelemetryServiceCredentialManager(Monitor monitor, TelemetryServiceClient telemetryServiceClient, TokenCache cache, ExecutorInstrumentation instrumentation, boolean enabled) {
+        this.enabled = enabled;
         this.monitor = monitor;
         this.telemetryServiceClient = telemetryServiceClient;
         this.cache = cache;
@@ -43,12 +46,23 @@ public class TelemetryServiceCredentialManager {
     }
 
 
+    public boolean isEnabled() {
+        return enabled;
+    }
+
     public Future<?> start() {
+        if (!enabled) {
+            cache.save(TokenRepresentation.Builder.newInstance().token("").build());
+            return CompletableFuture.completedFuture(null);
+        }
         active.set(true);
         return scheduleNextIterationIn(0L);
     }
 
     public CompletableFuture<Boolean> stop() {
+        if (!enabled) {
+            return CompletableFuture.completedFuture(true);
+        }
         active.set(false);
         return CompletableFuture.supplyAsync(() -> {
             try {

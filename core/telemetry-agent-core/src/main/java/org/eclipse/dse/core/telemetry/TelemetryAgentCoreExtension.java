@@ -36,6 +36,9 @@ import static org.eclipse.edc.statemachine.StateMachineConfiguration.DEFAULT_SEN
 @Provides({TelemetryAgent.class, TelemetryServiceCredentialManager.class})
 public class TelemetryAgentCoreExtension implements ServiceExtension {
 
+    @Setting(description = "Whether the telemetry service credentials manager is enabled. When false, the credential manager does not start and a dummy token is used instead.", type = "boolean", defaultValue = "false")
+    private static final String TELEMETRY_AGENT_CREDENTIALS_MANAGER_ENABLED = "dse.telemetry-agent.credentials-manager.enabled";
+
     @Setting(description = "The iteration wait time in milliseconds in the telemetry agent state machine. Default value " + DEFAULT_ITERATION_WAIT, type = "long")
     private static final String TELEMETRY_AGENT_MACHINE_ITERATION_WAIT_MILLIS = "dse.telemetry-agent.state-machine.iteration-wait-millis";
 
@@ -143,7 +146,8 @@ public class TelemetryAgentCoreExtension implements ServiceExtension {
 
         var telemetryServiceClient = defaultTelemetryServiceClient(context);
 
-        credentialsManager = new TelemetryServiceCredentialManager(monitor, telemetryServiceClient, cache, executorInstrumentation);
+        var enabled = context.getSetting(TELEMETRY_AGENT_CREDENTIALS_MANAGER_ENABLED, false);
+        credentialsManager = new TelemetryServiceCredentialManager(monitor, telemetryServiceClient, cache, executorInstrumentation, enabled);
         context.registerService(TelemetryServiceCredentialManager.class, credentialsManager);
     }
 

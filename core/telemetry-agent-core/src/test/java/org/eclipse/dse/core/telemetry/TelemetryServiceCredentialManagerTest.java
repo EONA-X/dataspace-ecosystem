@@ -23,7 +23,7 @@ class TelemetryServiceCredentialManagerTest {
 
     @BeforeEach
     void setUp() {
-        manager = new TelemetryServiceCredentialManager(mock(), telemetryServiceClient, cache, ExecutorInstrumentation.noop());
+        manager = new TelemetryServiceCredentialManager(mock(), telemetryServiceClient, cache, ExecutorInstrumentation.noop(), true);
     }
 
     @AfterEach
