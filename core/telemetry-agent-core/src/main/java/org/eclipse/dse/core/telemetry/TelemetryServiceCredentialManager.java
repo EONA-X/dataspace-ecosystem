@@ -52,7 +52,8 @@ public class TelemetryServiceCredentialManager {
 
     public Future<?> start() {
         if (!enabled) {
-            cache.save(TokenRepresentation.Builder.newInstance().token("").build());
+            cache.save(TokenRepresentation.Builder.newInstance().token("").build()); // FIXME
+            monitor.debug(this.name + " is disabled, so not started and not active!");
             return CompletableFuture.completedFuture(null);
         }
         active.set(true);
@@ -61,6 +62,7 @@ public class TelemetryServiceCredentialManager {
 
     public CompletableFuture<Boolean> stop() {
         if (!enabled) {
+            monitor.debug(this.name + " is disabled, so already stopped and not active!");
             return CompletableFuture.completedFuture(true);
         }
         active.set(false);
