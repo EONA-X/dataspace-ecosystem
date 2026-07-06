@@ -6,7 +6,8 @@ allprojects {
             includeTestsMatching "*IT"
             includeTestsMatching "*IntegrationTest"
 
-            includeTestsMatching "*StoreTest"
+            includeTestsMatching "Postgres*"
+            includeTestsMatching "Sql*Test"
 
             excludeTestsMatching "*EndToEndTest*"
             excludeTestsMatching "*EndToEndTests*"

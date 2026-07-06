@@ -124,7 +124,7 @@ unit-tests:
   variables:
     CACHE_POLICY: "pull"
   script:
-    - ./gradlew test --build-cache --init-script unit-tests.gradle
+    - ./gradlew test --build-cache --info --init-script unit-tests.gradle
   artifacts:
     when: always
     paths:
@@ -154,7 +154,7 @@ integration-tests:
   cache:
     policy: pull
   script:
-    - ./gradlew test --build-cache --init-script integration-tests.gradle
+    - ./gradlew test --build-cache --info --init-script integration-tests.gradle
   artifacts:
     when: always
     paths:

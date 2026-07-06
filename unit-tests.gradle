@@ -11,6 +11,8 @@ allprojects {
             excludeTestsMatching "*IntegrationTest"
             excludeTestsMatching "*EndToEndTest"
             excludeTestsMatching "*EndToEndTests"
+            excludeTestsMatching "Postgres*"
+            excludeTestsMatching "Sql*Test"
         }
     }
 }
