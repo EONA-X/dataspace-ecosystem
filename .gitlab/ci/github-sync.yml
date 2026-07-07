@@ -1,0 +1,29 @@
+github-sync:
+  stage: sync
+  image: ubuntu:latest
+  rules:
+    - if: $CI_COMMIT_TAG == "public"
+      when: manual
+  resource_group: github-sync
+
+  before_script:
+    - apt-get update && apt-get install -y git openssh-client rsync
+    - eval $(ssh-agent -s)
+    - echo "$GITHUB_SSH_PRIVATE_KEY_BASE64" | base64 -d | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan github.com >> ~/.ssh/known_hosts
+  script:
+    - git clone git@github.com:Eona-X/dataspace-ecosystem.git /tmp/github-repo
+    - rsync -av --delete --exclude-from='./.rsync-exclude' --chmod=D755,F644 ./ /tmp/github-repo/
+    - cd /tmp/github-repo
+    - git config user.name "gitlab-ci-sync[bot]"
+    - git config user.email "gitlab@eona-x.eu"
+    - git add -A
+    - |
+      if ! git diff-index --quiet HEAD --; then
+        git commit -m "sync: from gitlab $CI_COMMIT_SHORT_SHA"
+        git push origin main
+      else
+        echo "No file changes detected."
+      fi

@@ -4,6 +4,10 @@ stages:
   - test
   - package
   - deploy
+  - sync
+
+include:
+  - local: '/.gitlab/ci/github-sync.yml'
 
 .gradle:
   image: ${REGISTRY_HOST}/${REGISTRY_NS_TOOLS}/gradle:8.8.0-jdk17-jammy
@@ -54,50 +58,6 @@ stages:
         fi
       done
 
-.deploy-argocd-mr:
-  stage: deploy
-  image: alpine:latest
-  needs: [docker-build-push]
-  before_script:
-    - apk add --no-cache git yq curl
-  script:
-    - |
-      MR_BRANCH="deploy_${DEPLOY_ENV}"
-      PROJECT_PATH="eona-x%2Fdata-space%2Fargocd-deployments"
-      git config --global user.name "${GITLAB_USER}"
-      git config --global user.email "${GITLAB_USER}@eona-x.eu"
-      git config --global --add credential.helper "store --file ./.git-credentials"
-      echo "https://${GITLAB_USER}:${GITLAB_TOKEN}@${GITLAB_HOST}" > ./.git-credentials
-      git config --global http.sslVerify false
-      git clone "https://${GITLAB_USER}:${GITLAB_TOKEN}@${GITLAB_HOST}/eona-x/data-space/argocd-deployments.git" argocd-repo
-      cd argocd-repo
-      git fetch origin
-      git checkout -B "${MR_BRANCH}" "origin/${DEPLOY_ENV}"
-      for f in $(grep -rl "eona-x/dse" values/ --exclude="dataspace-ui-values.yaml"); do
-        yq e -i '(.. | select(type == "!!map" and has("repository") and has("tag")) | .tag) = strenv(DEPLOY_TAG)' "$f"
-      done
-      git add values/
-      if git diff --cached --quiet; then
-        echo "No changes to commit."
-        exit 0
-      fi
-      git commit -m "deploy: ${DEPLOY_ENV} -> ${DEPLOY_TAG}"
-      git push --force "https://${GITLAB_USER}:${GITLAB_TOKEN}@${GITLAB_HOST}/eona-x/data-space/argocd-deployments.git" "HEAD:${MR_BRANCH}"
-      EXISTING_MR=$(curl -s --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-        "https://${GITLAB_HOST}/api/v4/projects/${PROJECT_PATH}/merge_requests?state=opened&source_branch=${MR_BRANCH}&target_branch=${DEPLOY_ENV}" \
-        | yq e '.[0].iid' -)
-      if [ "${EXISTING_MR}" = "null" ] || [ -z "${EXISTING_MR}" ]; then
-        curl -s --request POST --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-          "https://${GITLAB_HOST}/api/v4/projects/${PROJECT_PATH}/merge_requests" \
-          --data-urlencode "source_branch=${MR_BRANCH}" \
-          --data-urlencode "target_branch=${DEPLOY_ENV}" \
-          --data-urlencode "title=deploy: ${DEPLOY_ENV} -> ${DEPLOY_TAG}" \
-          --data-urlencode "remove_source_branch=true" \
-          | yq e '"Merge request created: " + .web_url' -
-      else
-        echo "Merge request already open: !${EXISTING_MR}"
-      fi
-
 compile:
   extends: .gradle
   stage: build
@@ -142,17 +102,14 @@ integration-tests:
   stage: test
   needs: [compile]
   variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
     CACHE_POLICY: "pull"
   services:
     - name: ${REGISTRY_DIND_IMAGE}
       alias: docker
       command: ["--tls=false"]
-  variables:
-    DOCKER_HOST: "tcp://docker:2375"
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_DRIVER: overlay2
-  cache:
-    policy: pull
   script:
     - ./gradlew test --build-cache --info --init-script integration-tests.gradle
   artifacts:
@@ -171,8 +128,8 @@ checkstyle:
   extends: .gradle
   stage: verify
   needs: [compile]
-  cache:
-    policy: pull
+  variables:
+    CACHE_POLICY: "pull"
   script:
     - ./gradlew checkstyleMain checkstyleTest --build-cache
   allow_failure: true
@@ -256,20 +213,6 @@ deploy-dev:
       variables:
         DEPLOY_TAG: latest
       when: on_success
-    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
-      variables:
-        DEPLOY_TAG: $CI_COMMIT_TAG
-      when: manual
-
-promote-uat:
-  extends: .deploy-argocd-mr
-  environment:
-    name: uat
-  variables:
-    DEPLOY_ENV: uat
-  needs:
-    - job: docker-build-push
-  rules:
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
       variables:
         DEPLOY_TAG: $CI_COMMIT_TAG

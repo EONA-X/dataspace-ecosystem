@@ -1,0 +1,6 @@
+.git/
+.gitlab/
+.gitlab-ci.yml
+.rsync-exclude
+unit-tests.gradle
+integration-tests.gradle
