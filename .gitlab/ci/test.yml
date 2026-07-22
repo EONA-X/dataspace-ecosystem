@@ -1,0 +1,62 @@
+test:unit:
+  extends: .gradle
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+  needs: [build:compile]
+  variables:
+    CACHE_POLICY: "pull"
+  script:
+    - ./gradlew test --build-cache --info --init-script unit-tests.gradle
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - "**/build/reports/tests/"
+    reports:
+      junit:
+        - "**/build/test-results/test/TEST-*.xml"
+
+test:integration:
+  extends: .gradle
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+  needs: [build:compile]
+  services:
+    - name: ${REGISTRY_DIND_IMAGE}
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    CACHE_POLICY: "pull"
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+  script:
+    - ./gradlew test --build-cache --info --init-script integration-tests.gradle
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - "**/build/reports/tests/"
+    reports:
+      junit:
+        - "**/build/test-results/test/TEST-*.xml"
+
+test:lint:
+  extends: .gradle
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      allow_failure: false
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs: [build:compile]
+  variables:
+    CACHE_POLICY: "pull"
+  script:
+    - ./gradlew checkstyleMain checkstyleTest --build-cache
+  allow_failure: true

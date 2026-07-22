@@ -2,5 +2,6 @@
 .gitlab/
 .gitlab-ci.yml
 .rsync-exclude
+deploy.sh
 unit-tests.gradle
 integration-tests.gradle

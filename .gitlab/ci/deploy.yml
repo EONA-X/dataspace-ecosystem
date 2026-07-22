@@ -1,0 +1,76 @@
+deploy:docker-push:
+  extends: .gradle
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+  needs:
+    - job: build:compile
+    - job: test:unit
+      artifacts: false
+    - job: test:integration
+      artifacts: false
+  services:
+    - name: ${REGISTRY_DIND_IMAGE}
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+    DOCKER_CONFIG: "./gradle"
+    CACHE_POLICY: "pull"
+  script:
+    - |
+      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
+        IMAGE_TAG="$(date +%Y%m%d-%H%M)"
+        IMAGE_TAGS="latest,${IMAGE_TAG}"
+        echo "IMAGE_TAG=${IMAGE_TAG}" > .env
+      else
+        IMAGE_TAG="${CI_COMMIT_TAG}"
+        IMAGE_TAGS="${IMAGE_TAG}"
+        echo "IMAGE_TAG=${IMAGE_TAG}" > .env
+      fi
+    - echo $DOCKER_AUTH_CONFIG_DEV > ./gradle/config.json
+    - |
+      ./gradlew shadowJar dockerize dockerPush \
+        --build-cache \
+        -PregistryHost="${REGISTRY_HOST}" \
+        -PregistryNs="${REGISTRY_NS_DSE}" \
+        -PimageTags="${IMAGE_TAGS}" \
+        -Pdocker.image.tags="${IMAGE_TAGS}" \
+        -Pdocker.registry="${REGISTRY_HOST}/${REGISTRY_NS_DSE}"
+  artifacts:
+    reports:
+      dotenv: .env
+
+deploy:dev:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs:
+    - job: deploy:docker-push
+      artifacts: true
+  image: ${DOCKER_IMAGE}
+  variables:
+    KUBECONFIG: ${KUBECONFIG_DEV}
+  environment:
+    name: dev
+  script:
+    - ./deploy.sh dev
+
+deploy:uat:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+      when: manual
+  needs:
+    - job: deploy:docker-push
+      artifacts: true
+  image: ${DOCKER_IMAGE}
+  variables:
+    KUBECONFIG: ${KUBECONFIG_DEV}
+  environment:
+    name: uat
+  script:
+    - ./deploy.sh uat merge_request

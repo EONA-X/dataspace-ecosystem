@@ -20,15 +20,20 @@ plugins {
 
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
 
-val dockerImageName = project.findProperty("docker.image.name")?.toString() ?: "kafka-proxy-oidc-auth"
-val dockerImageTag = project.findProperty("docker.image.tag")?.toString() ?: "latest"
 val dockerRegistry = project.findProperty("docker.registry")?.toString() ?: ""
+val dockerImageName = project.findProperty("docker.image.name")?.toString() ?: "kafka-proxy-oidc-auth"
+// Comma-separated list of tags to build/push under, e.g. "latest,20260722-1530".
+// Accepts either the plural "docker.image.tags" or the singular "docker.image.tag", like main build.gradle.kts's imageTags.
+val dockerImageTags = (project.findProperty("docker.image.tags")?.toString()
+    ?: project.findProperty("docker.image.tag")?.toString()
+    ?: "latest")
+    .split(",").map { it.trim() }.filter { it.isNotEmpty() }
 val loadToKind = project.hasProperty("loadToKind")
 
 val pluginDir = file("kafka-proxy-auth")
 val dockerContextDir = pluginDir
 val dockerFile = file("$dockerContextDir/Dockerfile")
-val imageName = "$dockerImageName:$dockerImageTag"
+val imageName = "$dockerImageName:${dockerImageTags.first()}"
 
 // Task to build Go binaries
 val buildGoPlugins = tasks.register<Exec>("buildGoPlugins") {
@@ -156,7 +161,7 @@ val dockerTask = tasks.register("dockerize", DockerBuildImage::class) {
     images.add(imageName)
     
     if (dockerRegistry.isNotEmpty()) {
-        images.add("$dockerRegistry/$dockerImageName:$dockerImageTag")
+        images.addAll(dockerImageTags.map { "$dockerRegistry/$dockerImageName:$it" })
     }
 
     // specify platform with the -Dplatform flag:
@@ -180,7 +185,7 @@ val dockerTask = tasks.register("dockerize", DockerBuildImage::class) {
 val dockerPushTask: DockerPushImage = tasks.create("dockerPush", DockerPushImage::class) {
     group = "distribution"
     description = "Push Docker image to registry"
-    images.add("${dockerRegistry}/${dockerImageName}:${dockerImageTag}")
+    images.addAll(dockerImageTags.map { "${dockerRegistry}/${dockerImageName}:${it}" })
 }
 // Ensure push happens after build
 dockerPushTask.dependsOn(dockerTask)

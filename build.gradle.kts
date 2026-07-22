@@ -190,14 +190,22 @@ subprojects {
                 dependsOn(podmanTask)
             }
 
+            // Comma-separated list of tags to build/push under, e.g. "latest,20260722-1530".
+            // Accepts either the plural "imageTags" or the singular "imageTag".
+            fun imageTags(): List<String> {
+                val raw = project.findProperty("imageTags")?.toString()
+                    ?: project.findProperty("imageTag")?.toString()
+                    ?: "latest"
+                return raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            }
+
             val dockerTask: DockerBuildImage = tasks.create("dockerize", DockerBuildImage::class) {
                 project.plugins.apply("com.bmuschko.docker-remote-api")
 
-                val imageTag = project.findProperty("imageTag")?.toString() ?: "latest"
                 val registryHost = project.findProperty("registryHost")?.toString() ?: "localhost"
                 val registryNs = project.findProperty("registryNs")?.toString() ?: "local"
 
-                images.add("${registryHost}/${registryNs}/${project.name}:${imageTag}")
+                images.addAll(imageTags().map { "${registryHost}/${registryNs}/${project.name}:${it}" })
                 // specify platform with the -Dplatform flag:
                 if (System.getProperty("platform") != null)
                     platform.set(System.getProperty("platform"))
@@ -217,11 +225,10 @@ subprojects {
                     description = "Push Docker image to registry"
                     project.plugins.apply("com.bmuschko.docker-remote-api")
 
-                    val imageTag = project.findProperty("imageTag")?.toString() ?: "latest"
                     val registryHost = project.findProperty("registryHost")?.toString() ?: "localhost"
                     val registryNs = project.findProperty("registryNs")?.toString() ?: "local"
 
-                    images.add("${registryHost}/${registryNs}/${project.name}:${imageTag}")
+                    images.addAll(imageTags().map { "${registryHost}/${registryNs}/${project.name}:${it}" })
                 }
                 // Ensure push happens after build
                 dockerPushTask.dependsOn(dockerTask)

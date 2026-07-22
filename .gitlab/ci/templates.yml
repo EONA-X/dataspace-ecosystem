@@ -1,0 +1,15 @@
+.gradle:
+  image: ${REGISTRY_HOST}/${REGISTRY_NS_TOOLS}/gradle:8.8.0-jdk17-jammy
+  variables:
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/cache"
+    CACHE_POLICY: "pull"
+  cache:
+    key:
+      files:
+        - gradle/wrapper/gradle-wrapper.properties
+    paths:
+      - cache/caches/
+      - cache/notifications/
+      - cache/wrapper/
+    policy: $CACHE_POLICY
+  interruptible: true
