@@ -57,7 +57,20 @@ deploy:retag-image:
     - echo "IMAGE_TAG=${CI_COMMIT_TAG}" > .env
     - echo $DOCKER_AUTH_CONFIG_DEV > ./gradle/config.json
     - |
-      MODULES=$(./gradlew -q printDockerImageName | sed -n 's/^DOCKER_IMAGE_MODULE://p')
+      MODULES="
+        control-plane-postgresql-hashicorpvault
+        data-plane-postgresql-hashicorpvault
+        federated-catalog-postgresql-hashicorpvault
+        federated-catalog-filter-postgresql-hashicorpvault
+        identity-hub-postgresql-hashicorpvault
+        issuer-service-postgresql-hashicorpvault
+        kafka-proxy-k8s-manager
+        kafka-proxy-oidc-auth
+        telemetry-agent-postgresql-hashicorpvault
+        telemetry-csv-manager-postgresql-hashicorpvault
+        telemetry-service-postgresql-hashicorpvault
+        telemetry-storage-postgresql-hashicorpvault
+      "
       for module in $MODULES; do
         SRC="${REGISTRY_HOST}/${REGISTRY_NS_DSE}/${module}:sha-${CI_COMMIT_SHA}"
         DEST="${REGISTRY_HOST}/${REGISTRY_NS_DSE}/${module}:${CI_COMMIT_TAG}"

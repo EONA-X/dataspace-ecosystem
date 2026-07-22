@@ -199,10 +199,6 @@ subprojects {
                 return raw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             }
 
-            tasks.register("printDockerImageName") {
-                doLast { println("DOCKER_IMAGE_MODULE:${project.name}") }
-            }
-
             val dockerTask: DockerBuildImage = tasks.create("dockerize", DockerBuildImage::class) {
                 project.plugins.apply("com.bmuschko.docker-remote-api")
 
