@@ -16,9 +16,8 @@ cd argocd-deployments
 git fetch origin ${ENV}
 git checkout --force origin/${ENV}
 
-for f in $(grep -rl "${REGISTRY_NS_DSE}" values/ --exclude="dataspace-ui-values.yaml"); do
-  yq e -i '(.. | select(type == "!!map" and has("repository") and has("tag")) | .tag) = strenv(IMAGE_TAG)' "$f"
-done
+EXCLUDE_MODULES_REGEX="kafka-bundle"
+grep -rl "${REGISTRY_NS_DSE}" values/dataspace/participants | grep -Ev ${EXCLUDE_MODULES_REGEX} | xargs -n 1 sed -i '/^\s\{2,\}tag:/s/tag:.*/tag: ${IMAGE_TAG}/'
 
 git remote set-url origin https://${GITLAB_USER}:${GITLAB_TOKEN}@${GITLAB_HOST}/eona-x/data-space/argocd-deployments.git
 git add values/

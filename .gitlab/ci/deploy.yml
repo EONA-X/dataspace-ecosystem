@@ -3,7 +3,6 @@ deploy:docker-push:
   stage: deploy
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
   needs:
     - job: build:compile
     - job: test:unit
@@ -22,15 +21,9 @@ deploy:docker-push:
     CACHE_POLICY: "pull"
   script:
     - |
-      if [ "$CI_COMMIT_BRANCH" = "main" ]; then
-        IMAGE_TAG="$(date +%Y%m%d-%H%M)"
-        IMAGE_TAGS="latest,${IMAGE_TAG}"
-        echo "IMAGE_TAG=${IMAGE_TAG}" > .env
-      else
-        IMAGE_TAG="${CI_COMMIT_TAG}"
-        IMAGE_TAGS="${IMAGE_TAG}"
-        echo "IMAGE_TAG=${IMAGE_TAG}" > .env
-      fi
+      IMAGE_TAG="$(date +%Y%m%d-%H%M)"
+      IMAGE_TAGS="latest,${IMAGE_TAG},sha-${CI_COMMIT_SHA}"
+      echo "IMAGE_TAG=${IMAGE_TAG}" > .env
     - echo $DOCKER_AUTH_CONFIG_DEV > ./gradle/config.json
     - |
       ./gradlew shadowJar dockerize dockerPush \
@@ -40,6 +33,38 @@ deploy:docker-push:
         -PimageTags="${IMAGE_TAGS}" \
         -Pdocker.image.tags="${IMAGE_TAGS}" \
         -Pdocker.registry="${REGISTRY_HOST}/${REGISTRY_NS_DSE}"
+  artifacts:
+    reports:
+      dotenv: .env
+
+deploy:retag-image:
+  extends: .gradle
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
+  needs: []
+  services:
+    - name: ${REGISTRY_DIND_IMAGE}
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+    DOCKER_CONFIG: "./gradle"
+    CACHE_POLICY: "pull"
+  script:
+    - echo "IMAGE_TAG=${CI_COMMIT_TAG}" > .env
+    - echo $DOCKER_AUTH_CONFIG_DEV > ./gradle/config.json
+    - |
+      MODULES=$(./gradlew -q printDockerImageName | sed -n 's/^DOCKER_IMAGE_MODULE://p')
+      for module in $MODULES; do
+        SRC="${REGISTRY_HOST}/${REGISTRY_NS_DSE}/${module}:sha-${CI_COMMIT_SHA}"
+        DEST="${REGISTRY_HOST}/${REGISTRY_NS_DSE}/${module}:${CI_COMMIT_TAG}"
+        docker pull "${SRC}"
+        docker tag "${SRC}" "${DEST}"
+        docker push "${DEST}"
+      done
   artifacts:
     reports:
       dotenv: .env
@@ -57,15 +82,14 @@ deploy:dev:
   environment:
     name: dev
   script:
-    - ./deploy.sh dev
+    - ./deploy.sh dev merge_request
 
 deploy:uat:
   stage: deploy
   rules:
     - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
-      when: manual
   needs:
-    - job: deploy:docker-push
+    - job: deploy:retag-image
       artifacts: true
   image: ${DOCKER_IMAGE}
   variables:

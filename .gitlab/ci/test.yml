@@ -4,7 +4,6 @@ test:unit:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
   needs: [build:compile]
   variables:
     CACHE_POLICY: "pull"
@@ -25,7 +24,6 @@ test:integration:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == "main"
-    - if: $CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/
   needs: [build:compile]
   services:
     - name: ${REGISTRY_DIND_IMAGE}
