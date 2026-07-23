@@ -1,3 +1,21 @@
+spec:
+  inputs:
+    deploy_environment:
+      default: dev
+      options:
+        - dev
+        - uat
+      description: "deploy:manual - target environment"
+    deploy_mode:
+      default: push
+      options:
+        - push
+        - merge_request
+      description: "deploy:manual - push (direct) or merge_request"
+    deploy_tag:
+      default: latest
+      description: "deploy:manual - image tag to deploy"
+---
 deploy:docker-push:
   extends: .gradle
   stage: deploy
@@ -51,8 +69,6 @@ deploy:retag-image:
     DOCKER_HOST: "tcp://docker:2375"
     DOCKER_TLS_CERTDIR: ""
     DOCKER_DRIVER: overlay2
-    DOCKER_CONFIG: "./gradle"
-    CACHE_POLICY: "pull"
   script:
     - echo "IMAGE_TAG=${CI_COMMIT_TAG}" > .env
     - echo $DOCKER_AUTH_CONFIG_DEV > ./gradle/config.json
@@ -95,7 +111,7 @@ deploy:dev:
   environment:
     name: dev
   script:
-    - ./deploy.sh dev merge_request
+    - ./scripts/deploy.sh --environment dev --mode push
 
 deploy:uat:
   stage: deploy
@@ -110,4 +126,21 @@ deploy:uat:
   environment:
     name: uat
   script:
-    - ./deploy.sh uat merge_request
+    - ./scripts/deploy.sh --environment uat --mode merge_request
+
+deploy:manual:
+  stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+  needs: []
+  image: ${DOCKER_IMAGE}
+  variables:
+    KUBECONFIG: ${KUBECONFIG_DEV}
+    DEPLOY_ENVIRONMENT: $[[ inputs.deploy_environment ]]
+    DEPLOY_MODE: $[[ inputs.deploy_mode ]]
+    DEPLOY_TAG: $[[ inputs.deploy_tag ]]
+  environment:
+    name: $DEPLOY_ENVIRONMENT
+  script:
+    - ./scripts/deploy.sh --environment "${DEPLOY_ENVIRONMENT}" --mode "${DEPLOY_MODE}" --tag "${DEPLOY_TAG}"

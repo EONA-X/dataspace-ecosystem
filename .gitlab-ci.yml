@@ -1,8 +1,30 @@
+spec:
+  inputs:
+    deploy_environment:
+      default: dev
+      options:
+        - dev
+        - uat
+      description: "deploy:manual - target environment"
+    deploy_mode:
+      default: push
+      options:
+        - push
+        - merge_request
+      description: "deploy:manual - push (direct) or merge_request"
+    deploy_tag:
+      default: latest
+      description: "deploy:manual - image tag to deploy"
+---
 include:
   - local: '/.gitlab/ci/templates.yml'
   - local: '/.gitlab/ci/build.yml'
   - local: '/.gitlab/ci/test.yml'
   - local: '/.gitlab/ci/deploy.yml'
+    inputs:
+      deploy_environment: $[[ inputs.deploy_environment ]]
+      deploy_mode: $[[ inputs.deploy_mode ]]
+      deploy_tag: $[[ inputs.deploy_tag ]]
   - local: '/.gitlab/ci/github-sync.yml'
 
 stages:
