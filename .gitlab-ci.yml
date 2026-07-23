@@ -5,16 +5,20 @@ spec:
       options:
         - dev
         - uat
+        - prd
       description: "deploy:manual - target environment"
     deploy_mode:
-      default: push
+      default: merge_request
       options:
         - push
         - merge_request
-      description: "deploy:manual - push (direct) or merge_request"
+      description: "deploy:manual - push (direct) or merge_request (forced to merge_request if deploy_environment=prd)"
     deploy_tag:
       default: latest
       description: "deploy:manual - image tag to deploy"
+    deploy_include:
+      default: ""
+      description: "deploy:manual - comma-separated list of modules to include (empty = all)"
 ---
 include:
   - local: '/.gitlab/ci/templates.yml'
@@ -25,6 +29,7 @@ include:
       deploy_environment: $[[ inputs.deploy_environment ]]
       deploy_mode: $[[ inputs.deploy_mode ]]
       deploy_tag: $[[ inputs.deploy_tag ]]
+      deploy_include: $[[ inputs.deploy_include ]]
   - local: '/.gitlab/ci/github-sync.yml'
 
 stages:

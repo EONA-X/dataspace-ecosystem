@@ -5,16 +5,20 @@ spec:
       options:
         - dev
         - uat
+        - prd
       description: "deploy:manual - target environment"
     deploy_mode:
-      default: push
+      default: merge_request
       options:
         - push
         - merge_request
-      description: "deploy:manual - push (direct) or merge_request"
+      description: "deploy:manual - push (direct) or merge_request (merge_request only if deploy_environment=prd)"
     deploy_tag:
       default: latest
       description: "deploy:manual - image tag to deploy"
+    deploy_include:
+      default: ""
+      description: "deploy:manual - comma-separated list of modules to include (empty = all)"
 ---
 deploy:docker-push:
   extends: .gradle
@@ -140,7 +144,13 @@ deploy:manual:
     DEPLOY_ENVIRONMENT: $[[ inputs.deploy_environment ]]
     DEPLOY_MODE: $[[ inputs.deploy_mode ]]
     DEPLOY_TAG: $[[ inputs.deploy_tag ]]
+    DEPLOY_INCLUDE: $[[ inputs.deploy_include ]]
   environment:
     name: $DEPLOY_ENVIRONMENT
   script:
-    - ./scripts/deploy.sh --environment "${DEPLOY_ENVIRONMENT}" --mode "${DEPLOY_MODE}" --tag "${DEPLOY_TAG}"
+    - |
+      if [ "${DEPLOY_ENVIRONMENT}" = "prd" ]; then
+        echo "WARNING: deploy_environment=prd forces deploy_mode=merge_request (was ${DEPLOY_MODE})" >&2
+        DEPLOY_MODE="merge_request"
+      fi
+    - ./scripts/deploy.sh --environment "${DEPLOY_ENVIRONMENT}" --mode "${DEPLOY_MODE}" --tag "${DEPLOY_TAG}" --include "${DEPLOY_INCLUDE}"
