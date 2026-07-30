@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,7 +26,8 @@ public abstract class MembershipAttestationStoreTestBase {
     }
 
     protected MembershipAttestation getAttestation(String id) {
-        return new MembershipAttestation(id, UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString(), Instant.now());
+        return new MembershipAttestation(id, UUID.randomUUID().toString(), UUID.randomUUID().toString(), UUID.randomUUID().toString(), Instant.now(),
+                List.of("EMDS", "TOUR"));
     }
 
     @Nested

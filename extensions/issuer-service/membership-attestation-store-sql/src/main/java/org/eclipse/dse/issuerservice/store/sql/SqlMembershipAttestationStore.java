@@ -1,6 +1,7 @@
 package org.eclipse.dse.issuerservice.store.sql;
 
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.eclipse.dse.issuerservice.store.sql.schema.MembershipAttestationStatements;
 import org.eclipse.dse.spi.issuerservice.MembershipAttestation;
@@ -18,6 +19,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -120,30 +122,39 @@ public class SqlMembershipAttestationStore extends AbstractSqlStore implements M
                 resultSet.getString(statements.getHolderIdColumn()),
                 resultSet.getString(statements.getNameColumn()),
                 resultSet.getString(statements.getMembershipTypeColumn()),
-                resultSet.getTimestamp(statements.getMembershipStartDateColumn()).toInstant()
+                resultSet.getTimestamp(statements.getMembershipStartDateColumn()).toInstant(),
+                toGroupsList(resultSet.getString(statements.getGroupsColumn()))
         );
+    }
+
+    private List<String> toGroupsList(String groups) {
+        return groups == null ? List.of() : fromJson(groups, new TypeReference<List<String>>() { });
     }
 
     private void insertInternal(Connection connection, MembershipAttestation attestation) {
         transactionContext.execute(() -> {
+            var groups = toJson(attestation.groups());
             queryExecutor.execute(connection, statements.getInsertTemplate(),
                     attestation.id(),
                     attestation.name(),
                     attestation.membershipType(),
                     attestation.holderId(),
-                    Timestamp.from(attestation.membershipStartDate())
+                    Timestamp.from(attestation.membershipStartDate()),
+                    groups
             );
         });
     }
 
     private void updateInternal(Connection connection, MembershipAttestation attestation) {
         Objects.requireNonNull(attestation);
+        var groups = toJson(attestation.groups());
         queryExecutor.execute(connection, statements.getUpdateTemplate(),
                 attestation.id(),
                 attestation.name(),
                 attestation.membershipType(),
                 attestation.holderId(),
                 Timestamp.from(attestation.membershipStartDate()),
+                groups,
                 attestation.id());
     }
 

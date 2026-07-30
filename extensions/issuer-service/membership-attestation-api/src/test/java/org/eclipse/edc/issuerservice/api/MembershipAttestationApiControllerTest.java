@@ -50,7 +50,8 @@ class MembershipAttestationApiControllerTest extends RestControllerTestBase {
                 UUID.randomUUID().toString(),
                 UUID.randomUUID().toString(),
                 UUID.randomUUID().toString(),
-                Instant.now());
+                Instant.now(),
+                List.of("EMDS"));
     }
 
     @Nested

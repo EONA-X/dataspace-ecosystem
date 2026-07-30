@@ -62,6 +62,7 @@ public class MembershipAttestationApiController implements MembershipAttestation
     }
 
     private MembershipAttestation toAttestation(MembershipAttestationDto dto) {
-        return new MembershipAttestation(dto.id(), dto.holderId(), dto.name(), dto.membershipType(), Instant.now());
+        var groups = dto.groups() != null ? dto.groups() : List.<String>of();
+        return new MembershipAttestation(dto.id(), dto.holderId(), dto.name(), dto.membershipType(), Instant.now(), groups);
     }
 }

@@ -196,6 +196,10 @@ components:
     MembershipAttestation:
       type: object
       properties:
+        groups:
+          type: array
+          items:
+            type: string
         holderId:
           type: string
         id:
@@ -210,6 +214,10 @@ components:
     MembershipAttestationDto:
       type: object
       properties:
+        groups:
+          type: array
+          items:
+            type: string
         holderId:
           type: string
         id:

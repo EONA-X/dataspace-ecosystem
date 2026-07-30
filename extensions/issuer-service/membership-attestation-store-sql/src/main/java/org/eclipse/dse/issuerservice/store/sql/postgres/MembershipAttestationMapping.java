@@ -24,5 +24,6 @@ public class MembershipAttestationMapping extends TranslationMapping {
         add("membershipType", statements.getMembershipTypeColumn());
         add("membershipStartDate", statements.getMembershipStartDateColumn());
         add("name", statements.getNameColumn());
+        add("groups", statements.getGroupsColumn());
     }
 }

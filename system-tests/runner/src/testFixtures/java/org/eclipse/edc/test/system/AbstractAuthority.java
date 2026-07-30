@@ -198,7 +198,7 @@ abstract class AbstractAuthority extends AbstractEntity {
     }
 
     private void createParticipantMembershipAttestation(String name, String did) {
-        var dto = new MembershipAttestationDto(did, name, did, "FullMember");
+        var dto = new MembershipAttestationDto(did, name, did, "FullMember", List.of());
         given()
                 .baseUri(issuerServiceAdminUrl())
                 .body(dto)

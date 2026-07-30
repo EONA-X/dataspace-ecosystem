@@ -6,5 +6,6 @@ entity membership_attestation {
     * holder_id : varchar
     * name : varchar
     * membership_start_date : timestamp <<default: now()>>
+    * groups : varchar <<default: '[]'>>
 }
 @enduml
