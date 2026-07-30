@@ -4,22 +4,20 @@ import org.eclipse.edc.participant.spi.ParticipantAgentPolicyContext;
 import org.eclipse.edc.policy.engine.spi.PolicyContext;
 import org.eclipse.edc.policy.model.Operator;
 import org.eclipse.edc.policy.model.Permission;
-import org.eclipse.edc.util.reflection.ReflectionUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.eclipse.dse.iam.policy.PolicyConstants.DSE_GENERIC_CLAIM_CONSTRAINT;
 import static org.eclipse.edc.policy.model.Operator.EQ;
+import static org.eclipse.edc.policy.model.Operator.HAS_PART;
 import static org.eclipse.edc.policy.model.Operator.IN;
 import static org.eclipse.edc.policy.model.Operator.NEQ;
 
 public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPolicyContext> extends AbstractDynamicCredentialConstraintFunction<C> {
 
-    private static final List<Operator> SUPPORTED_OPERATORS = List.of(EQ, NEQ, IN);
+    private static final List<Operator> SUPPORTED_OPERATORS = List.of(EQ, NEQ, IN, HAS_PART);
 
     @Override
     public boolean evaluate(Object leftOperand, Operator operator, Object rightOperand, Permission rule, C policyContext) {
@@ -42,7 +40,7 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
             processedRightOperand = parsedRightOperand;
         }
 
-        var sanitizedLeftOperand = sanitizeLeftOperand((String) leftOperand);
+        var sanitizedLeftOperand = sanitizeLeftOperand((String) leftOperand, DSE_GENERIC_CLAIM_CONSTRAINT);
         var parts = sanitizedLeftOperand.split("\\.");
         if (parts.length < 2) {
             policyContext.reportProblem("Left operand must contain at least two parts but were %s.".formatted(sanitizedLeftOperand));
@@ -82,25 +80,6 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
         return (leftOperand instanceof String) && ((String) leftOperand).startsWith("%s.$".formatted(DSE_GENERIC_CLAIM_CONSTRAINT));
     }
 
-
-    private boolean evaluateClaims(String path, Map<String, Object> claims, Operator operator, Object right, PolicyContext policyContext) {
-        var sanitized = sanitizeClaims(claims);
-        var leftValue = ReflectionUtil.getFieldValue(path, sanitized);
-        if (!(leftValue instanceof String)) {
-            policyContext.reportProblem("Missing string field '%s' in claims".formatted(path));
-            return false;
-        }
-        return evaluateField((String) leftValue, operator, right);
-    }
-
-    private boolean evaluateField(String left, Operator operator, Object right) {
-        return switch (operator) {
-            case EQ -> left.equals(right);
-            case NEQ -> !left.equals(right);
-            case IN -> ((List<String>) right).contains(left);
-            default -> false;
-        };
-    }
 
     /**
      * Parses the right operand for IN operator, handling both List types and array-formatted strings
@@ -154,23 +133,6 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
         }
         
         return elements;
-    }
-
-    private String sanitizeLeftOperand(String leftOperand) {
-        return leftOperand.replace("%s.$.".formatted(DSE_GENERIC_CLAIM_CONSTRAINT), "");
-    }
-
-    private Map<String, Object> sanitizeClaims(Map<String, Object> claims) {
-        var sanitized = new HashMap<String, Object>();
-        for (Map.Entry<String, Object> entry : claims.entrySet()) {
-            String key = entry.getKey();
-            int lastSlashIndex = key.lastIndexOf('/');
-            if (lastSlashIndex != -1) {
-                key = key.substring(lastSlashIndex + 1);
-            }
-            sanitized.put(key, entry.getValue());
-        }
-        return sanitized;
     }
 
 }

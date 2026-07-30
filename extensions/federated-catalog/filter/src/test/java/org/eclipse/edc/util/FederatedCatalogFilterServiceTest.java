@@ -116,7 +116,11 @@ public class FederatedCatalogFilterServiceTest {
 
     @Test
     void filterCatalogSimplePolicies() throws IOException {
-        var membershipVc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("hello", "world"));
+        var membershipVc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of(
+                "hello", "world",
+                "groups", List.of("EMDS", "ERDS", "ETDS", "DEPLOYTOUR"),
+                "participantId", SUBJECT
+        ));
         var domainVc = createVc(DOMAIN_CREDENTIAL_TYPE, Map.of("domain", "route"));
         var credentials = List.of(membershipVc, domainVc);
         ClaimToken tokens = ClaimToken.Builder.newInstance().claim("vc", credentials).build();
@@ -169,6 +173,31 @@ public class FederatedCatalogFilterServiceTest {
                 result.stream()
                         .anyMatch(c -> c.getDatasets().stream()
                                 .anyMatch(d -> d.getId().equals("restricted-list-asset")))
+        );
+        assertTrue(
+                result.stream()
+                        .anyMatch(c -> c.getDatasets().stream()
+                                .anyMatch(d -> d.getId().equals("groups-emds-visible-asset")))
+        );
+        assertFalse(
+                result.stream()
+                        .anyMatch(c -> c.getDatasets().stream()
+                                .anyMatch(d -> d.getId().equals("groups-security-hidden-asset")))
+        );
+        assertTrue(
+                result.stream()
+                        .anyMatch(c -> c.getDatasets().stream()
+                                .anyMatch(d -> d.getId().equals("participant-visible-asset")))
+        );
+        assertFalse(
+                result.stream()
+                        .anyMatch(c -> c.getDatasets().stream()
+                                .anyMatch(d -> d.getId().equals("participant-hidden-asset")))
+        );
+        assertTrue(
+                result.stream()
+                        .anyMatch(c -> c.getDatasets().stream()
+                                .anyMatch(d -> d.getId().equals("no-policy-asset")))
         );
     }
 

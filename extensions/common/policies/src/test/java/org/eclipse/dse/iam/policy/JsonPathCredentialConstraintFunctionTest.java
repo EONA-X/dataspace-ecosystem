@@ -57,7 +57,7 @@ class JsonPathCredentialConstraintFunctionTest {
         var result = function.evaluate(null, Operator.valueOf(operator), null, null, policyContext);
 
         assertThat(result).isFalse();
-        assertThat(policyContext).satisfies(expectedProblem("Invalid operator: this constraint only allows the following operators: [EQ, NEQ, IN], but received '%s'.".formatted(operator)));
+        assertThat(policyContext).satisfies(expectedProblem("Invalid operator: this constraint only allows the following operators: [EQ, NEQ, IN, HAS_PART], but received '%s'.".formatted(operator)));
     }
 
     @ParameterizedTest
@@ -146,7 +146,7 @@ class JsonPathCredentialConstraintFunctionTest {
         var result = function.evaluate(leftOperand("coucou"), Operator.EQ, "world", null, policyContext);
 
         assertThat(result).isFalse();
-        assertThat(policyContext).satisfies(expectedProblem("Missing string field 'coucou' in claims"));
+        assertThat(policyContext).satisfies(expectedProblem("Missing string or list field 'coucou' in claims"));
     }
 
     @Test
@@ -158,6 +158,83 @@ class JsonPathCredentialConstraintFunctionTest {
 
         assertThat(result).isFalse();
         assertThat(policyContext).satisfies(expectedProblem("Failed to find %s.".formatted(MEMBERSHIP_CREDENTIAL_TYPE)));
+    }
+
+    @Test
+    void evaluate_hasPartOnScalarClaim_matching_shouldReturnTrue() {
+        // JSON-LD can collapse a singleton-list claim to a bare scalar upstream.
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("hello", "world"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("hello"), Operator.HAS_PART, "world", null, policyContext);
+
+        assertThat(result).isTrue();
+    }
+
+    @Test
+    void evaluate_hasPartOnScalarClaim_notMatching_shouldReturnFalse() {
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("hello", "world"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("hello"), Operator.HAS_PART, "other", null, policyContext);
+
+        assertThat(result).isFalse();
+    }
+
+    @Test
+    void evaluate_eqOnListClaim_shouldReturnFalse() {
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("groups", List.of("EMDS", "ETDS")));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("groups"), Operator.EQ, "EMDS", null, policyContext);
+
+        assertThat(result).isFalse();
+        assertThat(policyContext).satisfies(expectedProblem("Operator 'EQ' is not supported for a list claim value, only HAS_PART is"));
+    }
+
+    @Test
+    void evaluate_hasPartOnPostgresArrayLiteralStringClaim_shouldParseAndMatch() {
+        // #595: upstream's naive DB reader can surface a Postgres array column as its raw literal string.
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("groups", "{EMDS,ETDS}"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("groups"), Operator.HAS_PART, "EMDS", null, policyContext);
+
+        assertThat(result).isTrue();
+        assertThat(policyContext.getProblems()).isEmpty();
+    }
+
+    @Test
+    void evaluate_hasPartOnJsonArrayStringClaim_shouldParseAndMatch() {
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("groups", "[\"EMDS\",\"ETDS\"]"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("groups"), Operator.HAS_PART, "EMDS", null, policyContext);
+
+        assertThat(result).isTrue();
+        assertThat(policyContext.getProblems()).isEmpty();
+    }
+
+    @Test
+    void evaluate_hasPartOnListEncodedStringClaim_notMatching_shouldReturnFalse() {
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("groups", "{EMDS,ETDS}"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("groups"), Operator.HAS_PART, "ERDS", null, policyContext);
+
+        assertThat(result).isFalse();
+        assertThat(policyContext.getProblems()).isEmpty();
+    }
+
+    @Test
+    void evaluate_hasPartOnEmptyPostgresArrayLiteralStringClaim_shouldReturnFalse() {
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("groups", "{}"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("groups"), Operator.HAS_PART, "EMDS", null, policyContext);
+
+        assertThat(result).isFalse();
+        assertThat(policyContext.getProblems()).isEmpty();
     }
 
 
@@ -197,7 +274,11 @@ class JsonPathCredentialConstraintFunctionTest {
                     Arguments.of(Map.of("foo", "bar"), leftOperand("foo"), Operator.IN, "['hello', 'world']", false),
                     Arguments.of(Map.of("foo", "bar"), leftOperand("foo"), Operator.EQ, "barr", false),
                     Arguments.of(Map.of("foo", Map.of("hello", "world")), leftOperand("foo.hello"), Operator.EQ, "world", true),
-                    Arguments.of(Map.of("foo", Map.of("hello", "world")), leftOperand("foo.hello"), Operator.EQ, "world", true)
+                    Arguments.of(Map.of("foo", Map.of("hello", "world")), leftOperand("foo.hello"), Operator.EQ, "world", true),
+                    Arguments.of(Map.of("groups", List.of("EMDS", "ETDS")), leftOperand("groups"), Operator.HAS_PART, "EMDS", true),
+                    Arguments.of(Map.of("groups", List.of("EMDS", "ETDS")), leftOperand("groups"), Operator.HAS_PART, "ERDS", false),
+                    Arguments.of(Map.of("groups", List.of()), leftOperand("groups"), Operator.HAS_PART, "EMDS", false),
+                    Arguments.of(Map.of("my/namespace/" + "groups", List.of("EMDS")), leftOperand("groups"), Operator.HAS_PART, "EMDS", true)
             );
         }
 

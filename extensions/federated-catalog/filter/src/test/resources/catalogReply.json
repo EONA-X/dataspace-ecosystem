@@ -511,6 +511,196 @@
             "description": "obligation-test",
             "id": "obligation-test",
             "contenttype": "application/json"
+          },
+          {
+            "@id": "groups-emds-visible-asset",
+            "@type": "dcat:Dataset",
+            "odrl:hasPolicy": {
+              "@id": "Z3JvdXBzLWVtZHMtdmlzaWJsZS1hc3NldA==:Z3JvdXBzLWVtZHMtdmlzaWJsZS1hc3NldA==:MDllYzM3MzEtZmZlMC00NGJiLWI0ZDUtODMwODU3ODkzOTc5",
+              "@type": "odrl:Offer",
+              "odrl:permission": {
+                "odrl:action": {
+                  "@id": "odrl:use"
+                },
+                "odrl:constraint": {
+                  "odrl:leftOperand": {
+                    "@id": "eox-policy:RestrictedDiscoveryClaim.$.MembershipCredential.groups"
+                  },
+                  "odrl:operator": {
+                    "@id": "odrl:hasPart"
+                  },
+                  "odrl:rightOperand": "EMDS"
+                }
+              },
+              "odrl:prohibition": [],
+              "odrl:obligation": []
+            },
+            "dcat:distribution": [
+              {
+                "@type": "dcat:Distribution",
+                "dct:format": {
+                  "@id": "HttpData-PULL"
+                },
+                "dcat:accessService": {
+                  "@id": "35a5ae60-236f-4669-849c-a35bff05f1c8",
+                  "@type": "dcat:DataService"
+                }
+              }
+            ],
+            "version": "1.0",
+            "createdAt": "2026-07-24T12:00:00Z",
+            "name": "groups-emds-visible-asset",
+            "description": "groups-emds-visible-asset",
+            "id": "groups-emds-visible-asset",
+            "contenttype": "application/json"
+          },
+          {
+            "@id": "groups-security-hidden-asset",
+            "@type": "dcat:Dataset",
+            "odrl:hasPolicy": {
+              "@id": "Z3JvdXBzLXNlY3VyaXR5LWhpZGRlbi1hc3NldA==:Z3JvdXBzLXNlY3VyaXR5LWhpZGRlbi1hc3NldA==:MTllYzM3MzEtZmZlMC00NGJiLWI0ZDUtODMwODU3ODkzOTgw",
+              "@type": "odrl:Offer",
+              "odrl:permission": {
+                "odrl:action": {
+                  "@id": "odrl:use"
+                },
+                "odrl:constraint": {
+                  "odrl:leftOperand": {
+                    "@id": "eox-policy:RestrictedDiscoveryClaim.$.MembershipCredential.groups"
+                  },
+                  "odrl:operator": {
+                    "@id": "odrl:hasPart"
+                  },
+                  "odrl:rightOperand": "SECURITY"
+                }
+              },
+              "odrl:prohibition": [],
+              "odrl:obligation": []
+            },
+            "dcat:distribution": [
+              {
+                "@type": "dcat:Distribution",
+                "dct:format": {
+                  "@id": "HttpData-PULL"
+                },
+                "dcat:accessService": {
+                  "@id": "35a5ae60-236f-4669-849c-a35bff05f1c9",
+                  "@type": "dcat:DataService"
+                }
+              }
+            ],
+            "version": "1.0",
+            "createdAt": "2026-07-24T12:00:00Z",
+            "name": "groups-security-hidden-asset",
+            "description": "groups-security-hidden-asset",
+            "id": "groups-security-hidden-asset",
+            "contenttype": "application/json"
+          },
+          {
+            "@id": "participant-visible-asset",
+            "@type": "dcat:Dataset",
+            "odrl:hasPolicy": {
+              "@id": "cGFydGljaXBhbnQtdmlzaWJsZS1hc3NldA==:cGFydGljaXBhbnQtdmlzaWJsZS1hc3NldA==:MjllYzM3MzEtZmZlMC00NGJiLWI0ZDUtODMwODU3ODkzOTgx",
+              "@type": "odrl:Offer",
+              "odrl:permission": {
+                "odrl:action": {
+                  "@id": "odrl:use"
+                },
+                "odrl:constraint": {
+                  "odrl:leftOperand": {
+                    "@id": "eox-policy:RestrictedDiscoveryClaim.$.MembershipCredential.participantId"
+                  },
+                  "odrl:operator": {
+                    "@id": "odrl:eq"
+                  },
+                  "odrl:rightOperand": "did:web:subject"
+                }
+              },
+              "odrl:prohibition": [],
+              "odrl:obligation": []
+            },
+            "dcat:distribution": [
+              {
+                "@type": "dcat:Distribution",
+                "dct:format": {
+                  "@id": "HttpData-PULL"
+                },
+                "dcat:accessService": {
+                  "@id": "35a5ae60-236f-4669-849c-a35bff05f1ca",
+                  "@type": "dcat:DataService"
+                }
+              }
+            ],
+            "version": "1.0",
+            "createdAt": "2026-07-24T12:00:00Z",
+            "name": "participant-visible-asset",
+            "description": "participant-visible-asset",
+            "id": "participant-visible-asset",
+            "contenttype": "application/json"
+          },
+          {
+            "@id": "participant-hidden-asset",
+            "@type": "dcat:Dataset",
+            "odrl:hasPolicy": {
+              "@id": "cGFydGljaXBhbnQtaGlkZGVuLWFzc2V0:cGFydGljaXBhbnQtaGlkZGVuLWFzc2V0:MzllYzM3MzEtZmZlMC00NGJiLWI0ZDUtODMwODU3ODkzOTgy",
+              "@type": "odrl:Offer",
+              "odrl:permission": {
+                "odrl:action": {
+                  "@id": "odrl:use"
+                },
+                "odrl:constraint": {
+                  "odrl:leftOperand": {
+                    "@id": "eox-policy:RestrictedDiscoveryClaim.$.MembershipCredential.participantId"
+                  },
+                  "odrl:operator": {
+                    "@id": "odrl:eq"
+                  },
+                  "odrl:rightOperand": "did:web:other-participant"
+                }
+              },
+              "odrl:prohibition": [],
+              "odrl:obligation": []
+            },
+            "dcat:distribution": [
+              {
+                "@type": "dcat:Distribution",
+                "dct:format": {
+                  "@id": "HttpData-PULL"
+                },
+                "dcat:accessService": {
+                  "@id": "35a5ae60-236f-4669-849c-a35bff05f1cb",
+                  "@type": "dcat:DataService"
+                }
+              }
+            ],
+            "version": "1.0",
+            "createdAt": "2026-07-24T12:00:00Z",
+            "name": "participant-hidden-asset",
+            "description": "participant-hidden-asset",
+            "id": "participant-hidden-asset",
+            "contenttype": "application/json"
+          },
+          {
+            "@id": "no-policy-asset",
+            "@type": "dcat:Dataset",
+            "dcat:distribution": [
+              {
+                "@type": "dcat:Distribution",
+                "dct:format": {
+                  "@id": "HttpData-PULL"
+                },
+                "dcat:accessService": {
+                  "@id": "35a5ae60-236f-4669-849c-a35bff05f1cc",
+                  "@type": "dcat:DataService"
+                }
+              }
+            ],
+            "version": "1.0",
+            "createdAt": "2026-07-24T12:00:00Z",
+            "name": "no-policy-asset",
+            "description": "no-policy-asset",
+            "id": "no-policy-asset",
+            "contenttype": "application/json"
           }
         ],
         "dcat:catalog": [],

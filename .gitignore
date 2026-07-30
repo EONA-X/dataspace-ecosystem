@@ -48,3 +48,4 @@ Chart.lock
 
 ## OpenLens configuration files
 **/.openlens/
+/.claude/*
