@@ -75,7 +75,8 @@ deploy:retag-image:
     DOCKER_DRIVER: overlay2
   script:
     - echo "IMAGE_TAG=${CI_COMMIT_TAG}" > .env
-    - echo $DOCKER_AUTH_CONFIG_DEV > ./gradle/config.json
+    - mkdir -p ~/.docker
+    - echo "$DOCKER_AUTH_CONFIG_DEV" > ~/.docker/config.json
     - |
       MODULES="
         control-plane-postgresql-hashicorpvault
