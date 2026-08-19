@@ -63,6 +63,9 @@ public class SqlTelemetryEventStore extends AbstractSqlStore implements Telemetr
     public StoreResult<Void> save(TelemetryEvent attestation) {
         return transactionContext.execute(() -> {
             try (var connection = getConnection()) {
+                if (existsById(connection, attestation.id())) {
+                    return StoreResult.alreadyExists(format(TELEMETRY_EVENT_ALREADY_EXISTS, attestation.id()));
+                }
                 insertInternal(connection, attestation);
                 return StoreResult.success();
             } catch (Exception e) {

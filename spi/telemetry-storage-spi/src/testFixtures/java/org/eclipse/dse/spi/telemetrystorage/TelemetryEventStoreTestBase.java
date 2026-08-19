@@ -14,6 +14,7 @@ import java.util.Comparator;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.eclipse.edc.spi.result.StoreFailure.Reason.ALREADY_EXISTS;
 import static org.eclipse.edc.spi.result.StoreFailure.Reason.NOT_FOUND;
 
 public abstract class TelemetryEventStoreTestBase {
@@ -79,6 +80,19 @@ public abstract class TelemetryEventStoreTestBase {
                             Timestamp.class
                     )
                     .isEqualTo(attestation);
+        }
+
+        @Test
+        @DisplayName("Saving a second event with the same id must be reported as ALREADY_EXISTS, not a generic error")
+        void save_duplicateId_shouldReturnAlreadyExists() {
+            var attestation = getAttestation("duplicate-id");
+            var firstSave = getStore().save(attestation);
+            assertThat(firstSave.succeeded()).isTrue();
+
+            var secondSave = getStore().save(getAttestation("duplicate-id"));
+
+            assertThat(secondSave.failed()).isTrue();
+            assertThat(secondSave.reason()).isEqualTo(ALREADY_EXISTS);
         }
     }
 

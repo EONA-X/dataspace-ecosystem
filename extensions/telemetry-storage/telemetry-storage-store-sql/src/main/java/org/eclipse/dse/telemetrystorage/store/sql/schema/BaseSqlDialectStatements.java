@@ -39,7 +39,7 @@ public class BaseSqlDialectStatements implements TelemetryEventStatements {
 
     @Override
     public String getCountTemplate() {
-        return format("SELECT COUNT(*) FROM %s", getTelemetryEventTable());
+        return format("SELECT COUNT(*) FROM %s WHERE %s = ?", getTelemetryEventTable(), getIdColumn());
     }
 
     @Override
