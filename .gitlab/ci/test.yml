@@ -58,3 +58,13 @@ test:lint:
   script:
     - ./gradlew checkstyleMain checkstyleTest --build-cache
   allow_failure: true
+
+test:e2e:
+  tags:
+    - lourmel
+  stage: test
+  rules:
+    - when: manual
+  script:
+    - java -version
+    - ping -c 5 192.168.1.207
