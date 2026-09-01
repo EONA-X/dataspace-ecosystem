@@ -63,8 +63,13 @@ public class SqlTelemetryEventStore extends AbstractSqlStore implements Telemetr
     public StoreResult<Void> save(TelemetryEvent attestation) {
         return transactionContext.execute(() -> {
             try (var connection = getConnection()) {
-                if (existsById(connection, attestation.id())) {
-                    return StoreResult.alreadyExists(format(TELEMETRY_EVENT_ALREADY_EXISTS, attestation.id()));
+                var conflictingId = findConflictingId(connection, attestation);
+                if (conflictingId != null) {
+                    if (conflictingId.equals(attestation.id())) {
+                        return StoreResult.alreadyExists(format(TELEMETRY_EVENT_ALREADY_EXISTS, attestation.id()));
+                    }
+                    return StoreResult.alreadyExists(format(TELEMETRY_EVENT_DUPLICATE_CONTRACT_PARTICIPANT_TIMESTAMP,
+                            attestation.contractId(), attestation.participantId(), attestation.timestamp()));
                 }
                 insertInternal(connection, attestation);
                 return StoreResult.success();
@@ -131,15 +136,16 @@ public class SqlTelemetryEventStore extends AbstractSqlStore implements Telemetr
                 attestation.id());
     }
 
-    private boolean existsById(Connection connection, String definitionId) {
-        var sql = statements.getCountTemplate();
-        try (var stream = queryExecutor.query(connection, false, this::mapCount, sql, definitionId)) {
-            return stream.findFirst().orElse(0L) > 0;
+    private String findConflictingId(Connection connection, TelemetryEvent attestation) {
+        var sql = statements.getAlreadyExistQueryTemplate();
+        try (var stream = queryExecutor.query(connection, false, this::mapId, sql,
+                attestation.id(), attestation.contractId(), attestation.participantId(), attestation.timestamp())) {
+            return stream.findFirst().orElse(null);
         }
     }
 
-    private long mapCount(ResultSet resultSet) throws SQLException {
-        return resultSet.getLong(1);
+    private String mapId(ResultSet resultSet) throws SQLException {
+        return resultSet.getString(statements.getIdColumn());
     }
 
     private TelemetryEvent findById(Connection connection, String id) {

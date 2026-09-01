@@ -43,6 +43,17 @@ public class BaseSqlDialectStatements implements TelemetryEventStatements {
     }
 
     @Override
+    public String getAlreadyExistQueryTemplate() {
+        return format("SELECT %s FROM %s WHERE %s = ? OR (%s = ? AND %s = ? AND %s = ?) LIMIT 1",
+                getIdColumn(),
+                getTelemetryEventTable(),
+                getIdColumn(),
+                getContractIdColumn(),
+                getParticipantDidColumn(),
+                getTimestampColumn());
+    }
+
+    @Override
     public String getUpdateTemplate() {
         return format("UPDATE %s SET %s = ?, %s = ?, %s = ?, %s = ?, %s = ? WHERE %s = ?",
                 getTelemetryEventTable(),

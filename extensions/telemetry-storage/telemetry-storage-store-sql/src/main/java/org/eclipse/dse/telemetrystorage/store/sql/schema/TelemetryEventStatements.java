@@ -54,6 +54,8 @@ public interface TelemetryEventStatements extends SqlStatements {
 
     String getCountTemplate();
 
+    String getAlreadyExistQueryTemplate();
+
     String getUpdateTemplate();
 
     SqlQueryStatement createQuery(QuerySpec querySpec);
