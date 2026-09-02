@@ -6,6 +6,7 @@ dependencies {
     runtimeOnly(project(":extensions:data-plane:data-plane-public-api-v2"))
     runtimeOnly(project(":extensions:data-plane:data-plane-data-consumption-metrics"))
     runtimeOnly(project(":extensions:data-plane:data-plane-http-header-secrets"))
+    runtimeOnly(project(":extensions:data-plane:sftp-source"))
     runtimeOnly(project(":core:common:telemetry-record-store"))
 
     runtimeOnly(libs.edc.ext.dpf.kafka)

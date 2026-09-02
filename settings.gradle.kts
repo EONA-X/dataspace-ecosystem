@@ -26,6 +26,7 @@ include(":extensions:identity-hub:superuser-seed")
 include(":extensions:data-plane:data-plane-public-api-v2")
 include(":extensions:data-plane:data-plane-data-consumption-metrics")
 include(":extensions:data-plane:data-plane-http-header-secrets")
+include(":extensions:data-plane:sftp-source")
 
 include(":extensions:control-plane:asset-custom-property-subscriber")
 include(":extensions:control-plane:transfer-data-plane-signal-kafka")
