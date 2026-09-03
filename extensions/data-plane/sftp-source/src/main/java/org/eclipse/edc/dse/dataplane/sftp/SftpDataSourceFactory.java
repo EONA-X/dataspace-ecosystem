@@ -60,15 +60,15 @@ public class SftpDataSourceFactory implements DataSourceFactory {
 
     @Override
     public DataSource createSource(DataFlowStartMessage request) {
-        var validation = validateRequest(request);
+        Result<Void> validation = validateRequest(request);
         if (validation.failed()) {
             throw new EdcException(validation.getFailureDetail());
         }
 
-        var address = asSftpDataAddress(request);
-        var name = fileName(address.getPath());
-        var contentType = resolveContentType(address, name);
-        var sftpClientWrapper = new SftpClientWrapperImpl(address, vault, monitor);
+        SftpDataAddress address = asSftpDataAddress(request);
+        String name = fileName(address.getPath());
+        String contentType = resolveContentType(address, name);
+        SftpClientWrapperImpl sftpClientWrapper = new SftpClientWrapperImpl(address, vault, monitor);
 
         return SftpDataSource.Builder.newInstance()
                 .name(name)
@@ -89,11 +89,11 @@ public class SftpDataSourceFactory implements DataSourceFactory {
     }
 
     private String resolveContentType(SftpDataAddress address, String fileName) {
-        var declared = address.getContentType();
+        String declared = address.getContentType();
         if (declared != null) {
             return declared;
         }
-        var guessed = URLConnection.guessContentTypeFromName(fileName);
+        String guessed = URLConnection.guessContentTypeFromName(fileName);
         return guessed != null ? guessed : "application/octet-stream";
     }
 }

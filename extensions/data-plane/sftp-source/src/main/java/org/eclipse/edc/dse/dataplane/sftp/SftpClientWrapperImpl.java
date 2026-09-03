@@ -108,7 +108,7 @@ public class SftpClientWrapperImpl implements SftpClientWrapper {
         if (KEY_AUTH_TYPE.equals(dataAddress.getAuthType())) {
             String privateKey = resolveRequiredSecret(dataAddress.getPrivateKeySecretAlias(), "private key");
             String passphraseAlias = dataAddress.getPrivateKeyPassphraseSecretAlias();
-            String passphrase = passphraseAlias == null ? null : vault.resolveSecret(passphraseAlias);
+            String passphrase = passphraseAlias == null ? null : resolveRequiredSecret(passphraseAlias, "passphrase");
             SshKeyLoader.loadKeyPairs(privateKey, passphrase).forEach(session::addPublicKeyIdentity);
         } else {
             String password = resolveRequiredSecret(dataAddress.getClientPasswordSecretAlias(), "password");

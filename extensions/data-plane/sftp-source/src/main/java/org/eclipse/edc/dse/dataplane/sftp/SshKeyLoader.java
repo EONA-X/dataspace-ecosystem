@@ -7,6 +7,7 @@ import org.eclipse.edc.spi.EdcException;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -29,7 +30,7 @@ final class SshKeyLoader {
                 ? FilePasswordProvider.EMPTY
                 : FilePasswordProvider.of(passphrase);
 
-        try (var in = new ByteArrayInputStream(pemPrivateKey.getBytes(StandardCharsets.UTF_8))) {
+        try (InputStream in = new ByteArrayInputStream(pemPrivateKey.getBytes(StandardCharsets.UTF_8))) {
             List<KeyPair> keyPairs = new ArrayList<>();
             SecurityUtils.loadKeyPairIdentities(null, NamedResource.ofName("sftp-private-key"), in, passwordProvider)
                     .forEach(keyPairs::add);
