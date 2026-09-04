@@ -60,6 +60,7 @@ public class PolicyEvaluationExtension implements ServiceExtension {
         registerNamespaces();
         registerFunctions();
         registerBindings();
+        registerPreValidators();
     }
 
     private void registerNamespaces() {
@@ -80,6 +81,12 @@ public class PolicyEvaluationExtension implements ServiceExtension {
         policyEngine.registerFunction(ContractNegotiationPolicyContext.class, Permission.class, new CatalogDiscoveryConstraintFunction<>());
         policyEngine.registerFunction(TransferProcessPolicyContext.class, Permission.class, new CatalogDiscoveryConstraintFunction<>());
         policyEngine.registerFunction(CatalogDiscoveryPolicyContext.class, Permission.class, new CatalogDiscoveryConstraintFunction<>());
+    }
+
+    private void registerPreValidators() {
+        policyEngine.registerPreValidator(CatalogDiscoveryPolicyContext.class, new NonFullMemberDefaultDenyValidator<>());
+        policyEngine.registerPreValidator(ContractNegotiationPolicyContext.class, new NonFullMemberDefaultDenyValidator<>());
+        policyEngine.registerPreValidator(TransferProcessPolicyContext.class, new NonFullMemberDefaultDenyValidator<>());
     }
 
     private void registerBindings() {

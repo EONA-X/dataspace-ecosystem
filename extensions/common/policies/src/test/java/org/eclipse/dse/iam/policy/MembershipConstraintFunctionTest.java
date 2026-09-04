@@ -15,7 +15,7 @@ import java.util.Map;
 
 import static java.util.Collections.emptyMap;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.eclipse.dse.iam.policy.AbstractDynamicCredentialConstraintFunction.VC_CLAIM;
+import static org.eclipse.dse.iam.policy.CredentialsUtils.VC_CLAIM;
 import static org.eclipse.dse.iam.policy.MembershipConstraintFunction.ACTIVE;
 import static org.eclipse.dse.iam.policy.PolicyConstants.DSE_MEMBERSHIP_CONSTRAINT;
 

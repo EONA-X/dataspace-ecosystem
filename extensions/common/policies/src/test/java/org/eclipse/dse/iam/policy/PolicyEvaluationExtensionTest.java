@@ -1,6 +1,14 @@
 package org.eclipse.dse.iam.policy;
 
+import org.eclipse.edc.connector.controlplane.contract.spi.policy.ContractNegotiationPolicyContext;
+import org.eclipse.edc.connector.controlplane.contract.spi.policy.TransferProcessPolicyContext;
+import org.eclipse.edc.jsonld.spi.JsonLd;
+import org.eclipse.edc.policy.engine.spi.PolicyEngine;
+import org.eclipse.edc.policy.engine.spi.RuleBindingRegistry;
+import org.eclipse.edc.spi.monitor.Monitor;
+import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.lang.reflect.Field;
 import java.util.List;
@@ -12,6 +20,11 @@ import static org.eclipse.edc.connector.controlplane.catalog.spi.policy.CatalogP
 import static org.eclipse.edc.connector.controlplane.contract.spi.policy.ContractNegotiationPolicyContext.NEGOTIATION_SCOPE;
 import static org.eclipse.edc.connector.controlplane.contract.spi.policy.TransferProcessPolicyContext.TRANSFER_SCOPE;
 import static org.eclipse.edc.policy.model.OdrlNamespace.ODRL_SCHEMA;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 
 class PolicyEvaluationExtensionTest {
@@ -101,5 +114,27 @@ class PolicyEvaluationExtensionTest {
         
         // Then - Vérifier que l'instanciation fonctionne
         assertThat(extension).isNotNull();
+    }
+
+    @Test
+    void initialize_shouldRegisterNonFullMemberDefaultDenyValidator_againstTheThreeEvaluationContexts() throws Exception {
+        var policyEngine = mock(PolicyEngine.class);
+        var extension = new PolicyEvaluationExtension();
+        setField(extension, "policyEngine", policyEngine);
+        setField(extension, "ruleBindingRegistry", mock(RuleBindingRegistry.class));
+        setField(extension, "jsonLdService", mock(JsonLd.class));
+        setField(extension, "monitor", mock(Monitor.class));
+
+        extension.initialize(mock(ServiceExtensionContext.class, Mockito.RETURNS_DEEP_STUBS));
+
+        verify(policyEngine, times(1)).registerPreValidator(eq(CatalogDiscoveryPolicyContext.class), any());
+        verify(policyEngine, times(1)).registerPreValidator(eq(ContractNegotiationPolicyContext.class), any());
+        verify(policyEngine, times(1)).registerPreValidator(eq(TransferProcessPolicyContext.class), any());
+    }
+
+    private static void setField(Object target, String fieldName, Object value) throws Exception {
+        Field field = PolicyEvaluationExtension.class.getDeclaredField(fieldName);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 }
