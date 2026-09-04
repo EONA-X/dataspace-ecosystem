@@ -701,6 +701,121 @@
             "description": "no-policy-asset",
             "id": "no-policy-asset",
             "contenttype": "application/json"
+          },
+          {
+            "@id": "multi-offer-partial-asset",
+            "@type": "dcat:Dataset",
+            "odrl:hasPolicy": [
+              {
+                "@id": "cmVzdHJpY3RlZC1vZmZlcg==:bXVsdGktb2ZmZXItcGFydGlhbC1hc3NldA==:MDFhZTQ0NDEtOTk5OS00ZWEwLWFlNDMtMDFhZTQ0NDE5OTk5",
+                "@type": "odrl:Offer",
+                "odrl:permission": {
+                  "odrl:action": {
+                    "@id": "odrl:use"
+                  },
+                  "odrl:constraint": {
+                    "odrl:leftOperand": {
+                      "@id": "eox-policy:RestrictedDiscoveryClaim.$.DomainCredential.domain"
+                    },
+                    "odrl:operator": {
+                      "@id": "odrl:eq"
+                    },
+                    "odrl:rightOperand": "travel"
+                  }
+                },
+                "odrl:prohibition": [],
+                "odrl:obligation": []
+              },
+              {
+                "@id": "cGVybWlzc2l2ZS1vZmZlcg==:bXVsdGktb2ZmZXItcGFydGlhbC1hc3NldA==:MDJhZTQ0NDEtOTk5OS00ZWEwLWFlNDMtMDJhZTQ0NDE5OTk5",
+                "@type": "odrl:Offer",
+                "odrl:permission": [],
+                "odrl:prohibition": [],
+                "odrl:obligation": []
+              }
+            ],
+            "dcat:distribution": [
+              {
+                "@type": "dcat:Distribution",
+                "dct:format": {
+                  "@id": "HttpData-PULL"
+                },
+                "dcat:accessService": {
+                  "@id": "35a5ae60-236f-4669-849c-a35bff05f1cd",
+                  "@type": "dcat:DataService"
+                }
+              }
+            ],
+            "version": "1.0",
+            "createdAt": "2026-07-24T12:00:00Z",
+            "name": "multi-offer-partial-asset",
+            "description": "multi-offer-partial-asset",
+            "id": "multi-offer-partial-asset",
+            "contenttype": "application/json"
+          },
+          {
+            "@id": "multi-offer-all-fail-asset",
+            "@type": "dcat:Dataset",
+            "odrl:hasPolicy": [
+              {
+                "@id": "cmVzdHJpY3RlZC1vZmZlci0x:bXVsdGktb2ZmZXItYWxsLWZhaWwtYXNzZXQ=:MDNhZTQ0NDEtOTk5OS00ZWEwLWFlNDMtMDNhZTQ0NDE5OTk5",
+                "@type": "odrl:Offer",
+                "odrl:permission": {
+                  "odrl:action": {
+                    "@id": "odrl:use"
+                  },
+                  "odrl:constraint": {
+                    "odrl:leftOperand": {
+                      "@id": "eox-policy:RestrictedDiscoveryClaim.$.DomainCredential.domain"
+                    },
+                    "odrl:operator": {
+                      "@id": "odrl:eq"
+                    },
+                    "odrl:rightOperand": "travel"
+                  }
+                },
+                "odrl:prohibition": [],
+                "odrl:obligation": []
+              },
+              {
+                "@id": "cmVzdHJpY3RlZC1vZmZlci0y:bXVsdGktb2ZmZXItYWxsLWZhaWwtYXNzZXQ=:MDRhZTQ0NDEtOTk5OS00ZWEwLWFlNDMtMDRhZTQ0NDE5OTk5",
+                "@type": "odrl:Offer",
+                "odrl:permission": {
+                  "odrl:action": {
+                    "@id": "odrl:use"
+                  },
+                  "odrl:constraint": {
+                    "odrl:leftOperand": {
+                      "@id": "eox-policy:RestrictedDiscoveryClaim.$.DomainCredential.domain"
+                    },
+                    "odrl:operator": {
+                      "@id": "odrl:eq"
+                    },
+                    "odrl:rightOperand": "south"
+                  }
+                },
+                "odrl:prohibition": [],
+                "odrl:obligation": []
+              }
+            ],
+            "dcat:distribution": [
+              {
+                "@type": "dcat:Distribution",
+                "dct:format": {
+                  "@id": "HttpData-PULL"
+                },
+                "dcat:accessService": {
+                  "@id": "35a5ae60-236f-4669-849c-a35bff05f1ce",
+                  "@type": "dcat:DataService"
+                }
+              }
+            ],
+            "version": "1.0",
+            "createdAt": "2026-07-24T12:00:00Z",
+            "name": "multi-offer-all-fail-asset",
+            "description": "multi-offer-all-fail-asset",
+            "id": "multi-offer-all-fail-asset",
+            "contenttype": "application/json"
           }
         ],
         "dcat:catalog": [],

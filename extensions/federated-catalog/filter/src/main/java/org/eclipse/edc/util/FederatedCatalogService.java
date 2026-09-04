@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.eclipse.edc.FilterConstants.VC_CLAIMS;
@@ -77,7 +78,8 @@ public class FederatedCatalogService {
             }
             
             List<Dataset> filteredDatasets = catalog.getDatasets().stream()
-                    .filter(dataset -> evaluateDatasetPolicy(dataset, policyContext))
+                    .map(dataset -> filterDatasetOffers(dataset, policyContext))
+                    .flatMap(Optional::stream)
                     .collect(Collectors.toList());
 
             Catalog filteredCatalog = Catalog.Builder.newInstance()
@@ -93,24 +95,40 @@ public class FederatedCatalogService {
         return filteredCatalogs;
     }
 
-    private boolean evaluateDatasetPolicy(Dataset dataset, CatalogDiscoveryPolicyContext policyContext) {
-        List<Policy> policies = dataset.getOffers().values().stream().toList();
+    /**
+     * Keeps only offers whose policy evaluation succeeds. Dataset is dropped only when
+     * every offer fails; otherwise the dataset is kept with just the passing offers.
+     */
+    private Optional<Dataset> filterDatasetOffers(Dataset dataset, CatalogDiscoveryPolicyContext policyContext) {
+        Map<String, Policy> offers = dataset.getOffers();
 
-        if (policies.isEmpty()) {
+        if (offers.isEmpty()) {
             monitor.debug(String.format("Dataset %s has no policies", dataset.getId()));
-            return true;
+            return Optional.of(dataset);
         }
 
-        for (Policy policy : policies) {
-            Result<Void> evaluationResult = policyEngine.evaluate(policy, policyContext);
-            if (!evaluationResult.succeeded()) {
-                monitor.debug(String.format("Dataset %s failed policy evaluation", dataset.getId()));
-                return false;
-            }
+        Map<String, Policy> passingOffers = offers.entrySet().stream()
+                .filter(entry -> policyEngine.evaluate(entry.getValue(), policyContext).succeeded())
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+        if (passingOffers.isEmpty()) {
+            monitor.debug(String.format("Dataset %s failed all policy evaluations, hiding dataset", dataset.getId()));
+            return Optional.empty();
+        }
+
+        if (passingOffers.size() < offers.size()) {
+            monitor.debug(String.format("Dataset %s kept with %d/%d offers passing policy evaluation",
+                    dataset.getId(), passingOffers.size(), offers.size()));
+            return Optional.of(Dataset.Builder.newInstance()
+                    .id(dataset.getId())
+                    .distributions(dataset.getDistributions())
+                    .properties(dataset.getProperties())
+                    .offers(passingOffers)
+                    .build());
         }
 
         monitor.debug(String.format("Dataset %s passed all policy evaluations", dataset.getId()));
-        return true;
+        return Optional.of(dataset);
     }
 
     protected CatalogDiscoveryPolicyContext createContext(ClaimToken participantVcs) {
