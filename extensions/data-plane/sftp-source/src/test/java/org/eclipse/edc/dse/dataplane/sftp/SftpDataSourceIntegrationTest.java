@@ -144,7 +144,7 @@ class SftpDataSourceIntegrationTest {
     void shouldFail_whenPasswordAliasDoesNotResolve() throws Exception {
         // unlike shouldFail_whenHostKeyAliasDoesNotResolve, this alias fails to resolve AFTER the SSH
         // session is already open (host key check passed) — the path that used to leak the session/client
-        // before authenticate()'s EdcException was caught in SftpClientWrapperImpl.connect()
+        // before authenticate()'s EdcException was caught in SftpClientWrapper.connect()
         when(vault.resolveSecret("hostkey-alias")).thenReturn(realHostKeyFingerprint);
         when(vault.resolveSecret("missing-password-alias")).thenReturn(null);
 
@@ -185,8 +185,8 @@ class SftpDataSourceIntegrationTest {
                         .port(SFTP_SERVER.getMappedPort(22))
                         .path("/upload/" + REMOTE_FILE_NAME)
                         .username(USERNAME)
-                        .authType(SftpDataAddress.PASSWORD_AUTH_TYPE)
-                        .publicSshKeySecretAlias(hostKeyAlias)
+                        .authType(SftpDataAddress.AUTH_TYPE_PASSWORD)
+                        .hostKeyFingerprintSecretAlias(hostKeyAlias)
                         .clientPasswordSecretAlias(passwordAlias)
                         .build())
                 .build();
@@ -194,7 +194,7 @@ class SftpDataSourceIntegrationTest {
 
     /**
      * Establishes one throwaway connection with an accept-all verifier just to capture the server's real host
-     * key, then computes its fingerprint the same way {@code SftpClientWrapperImpl} does. Mirrors what a
+     * key, then computes its fingerprint the same way {@code SftpClientWrapper} does. Mirrors what a
      * provider does in practice: look up the SFTP server's real host key once, out of band, before declaring
      * it on the asset.
      */

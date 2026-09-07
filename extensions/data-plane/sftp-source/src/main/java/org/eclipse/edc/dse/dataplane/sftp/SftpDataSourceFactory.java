@@ -10,8 +10,9 @@ import org.eclipse.edc.spi.types.domain.transfer.DataFlowStartMessage;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.URLConnection;
+import java.nio.file.Path;
 
-import static org.eclipse.edc.dse.dataplane.sftp.SftpDataAddress.KEY_AUTH_TYPE;
+import static org.eclipse.edc.dse.dataplane.sftp.SftpDataAddress.AUTH_TYPE_KEY;
 import static org.eclipse.edc.dse.dataplane.sftp.SftpDataAddress.SFTP_TYPE;
 
 /**
@@ -44,10 +45,10 @@ public class SftpDataSourceFactory implements DataSourceFactory {
         if (address.getPath() == null) {
             return Result.failure("SFTP DataAddress: missing 'path'");
         }
-        if (address.getPublicSshKeySecretAlias() == null) {
-            return Result.failure("SFTP DataAddress: missing 'publicSshKeySecretAlias' — host key verification is mandatory, no known_hosts fallback");
+        if (address.getHostKeyFingerprintSecretAlias() == null) {
+            return Result.failure("SFTP DataAddress: missing 'hostKeyFingerprintSecretAlias' — host key verification is mandatory, no known_hosts fallback");
         }
-        if (KEY_AUTH_TYPE.equals(address.getAuthType())) {
+        if (AUTH_TYPE_KEY.equals(address.getAuthType())) {
             if (address.getPrivateKeySecretAlias() == null) {
                 return Result.failure("SFTP DataAddress: authType 'key' requires 'privateKeySecretAlias'");
             }
@@ -66,12 +67,12 @@ public class SftpDataSourceFactory implements DataSourceFactory {
         }
 
         SftpDataAddress address = asSftpDataAddress(request);
-        String name = fileName(address.getPath());
-        String contentType = resolveContentType(address, name);
-        SftpClientWrapperImpl sftpClientWrapper = new SftpClientWrapperImpl(address, vault, monitor);
+        String filename = fileName(address.getPath());
+        String contentType = resolveContentType(address, filename);
+        SftpClientWrapper sftpClientWrapper = new SftpClientWrapper(address, vault, monitor);
 
         return SftpDataSource.Builder.newInstance()
-                .name(name)
+                .name(filename)
                 .contentType(contentType)
                 .sftpClientWrapper(sftpClientWrapper)
                 .build();
@@ -84,8 +85,7 @@ public class SftpDataSourceFactory implements DataSourceFactory {
     }
 
     private String fileName(String path) {
-        int lastSlash = path.lastIndexOf('/');
-        return lastSlash < 0 ? path : path.substring(lastSlash + 1);
+        return Path.of(path).getFileName().toString();
     }
 
     private String resolveContentType(SftpDataAddress address, String fileName) {

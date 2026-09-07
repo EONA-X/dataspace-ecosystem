@@ -36,7 +36,7 @@ class SftpDataSourceFactoryTest {
         var request = createRequest(Map.of(
                 "host", "sftp.example.com",
                 "path", "/data/file.png",
-                "publicSshKeySecretAlias", "hostkey-alias",
+                "hostKeyFingerprintSecretAlias", "hostkey-alias",
                 "clientPasswordSecretAlias", "password-alias"));
 
         var result = factory.validateRequest(request);
@@ -48,7 +48,7 @@ class SftpDataSourceFactoryTest {
     void validateRequest_fails_whenHostMissing() {
         var request = createRequest(Map.of(
                 "path", "/data/file.png",
-                "publicSshKeySecretAlias", "hostkey-alias",
+                "hostKeyFingerprintSecretAlias", "hostkey-alias",
                 "clientPasswordSecretAlias", "password-alias"));
 
         var result = factory.validateRequest(request);
@@ -67,7 +67,7 @@ class SftpDataSourceFactoryTest {
         var result = factory.validateRequest(request);
 
         assertThat(result.succeeded()).isFalse();
-        assertThat(result.getFailureDetail()).contains("publicSshKeySecretAlias");
+        assertThat(result.getFailureDetail()).contains("hostKeyFingerprintSecretAlias");
     }
 
     @Test
@@ -75,7 +75,7 @@ class SftpDataSourceFactoryTest {
         var request = createRequest(Map.of(
                 "host", "sftp.example.com",
                 "path", "/data/file.png",
-                "publicSshKeySecretAlias", "hostkey-alias"));
+                "hostKeyFingerprintSecretAlias", "hostkey-alias"));
 
         var result = factory.validateRequest(request);
 
@@ -89,7 +89,7 @@ class SftpDataSourceFactoryTest {
                 "host", "sftp.example.com",
                 "path", "/data/file.png",
                 "authType", "key",
-                "publicSshKeySecretAlias", "hostkey-alias"));
+                "hostKeyFingerprintSecretAlias", "hostkey-alias"));
 
         var result = factory.validateRequest(request);
 
@@ -109,7 +109,7 @@ class SftpDataSourceFactoryTest {
         var request = createRequest(Map.of(
                 "host", "sftp.example.com",
                 "path", "/data/eonax.png",
-                "publicSshKeySecretAlias", "hostkey-alias",
+                "hostKeyFingerprintSecretAlias", "hostkey-alias",
                 "clientPasswordSecretAlias", "password-alias"));
 
         var source = factory.createSource(request);
@@ -122,7 +122,7 @@ class SftpDataSourceFactoryTest {
         var properties = new HashMap<String, Object>(Map.of(
                 "host", "sftp.example.com",
                 "path", "/data/eonax.svg",
-                "publicSshKeySecretAlias", "hostkey-alias",
+                "hostKeyFingerprintSecretAlias", "hostkey-alias",
                 "clientPasswordSecretAlias", "password-alias"));
         properties.put("contentType", "image/svg+xml");
         var request = createRequest(properties);

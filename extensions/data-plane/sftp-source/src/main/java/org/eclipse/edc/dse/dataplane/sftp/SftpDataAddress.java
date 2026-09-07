@@ -17,17 +17,17 @@ import static java.util.Collections.emptyMap;
  * SFTP configuration, since each participant operates its own server.
  * <p>
  * Credential and host-key properties ({@link #getClientPasswordSecretAlias()}, {@link #getPrivateKeySecretAlias()},
- * {@link #getPublicSshKeySecretAlias()}) are Vault aliases, never raw values — resolved at connection time by
- * {@code SftpClientWrapperImpl}.
+ * {@link #getHostKeyFingerprintSecretAlias()}) are Vault aliases, never raw values — resolved at connection time by
+ * {@code SftpClientWrapper}.
  */
 @JsonTypeName()
 @JsonDeserialize(builder = DataAddress.Builder.class)
 public class SftpDataAddress extends DataAddress {
 
-    public static final String SFTP_TYPE = "Sftp";
+    public static final String SFTP_TYPE = "Sftp-Pull";
 
-    public static final String PASSWORD_AUTH_TYPE = "password";
-    public static final String KEY_AUTH_TYPE = "key";
+    public static final String AUTH_TYPE_PASSWORD = "password";
+    public static final String AUTH_TYPE_KEY = "key";
 
     private static final String HOST = "host";
     private static final String PORT = "port";
@@ -37,7 +37,7 @@ public class SftpDataAddress extends DataAddress {
     private static final String CLIENT_PASSWORD_SECRET_ALIAS = "clientPasswordSecretAlias";
     private static final String PRIVATE_KEY_SECRET_ALIAS = "privateKeySecretAlias";
     private static final String PRIVATE_KEY_PASSPHRASE_SECRET_ALIAS = "privateKeyPassphraseSecretAlias";
-    private static final String PUBLIC_SSH_KEY_SECRET_ALIAS = "publicSshKeySecretAlias";
+    private static final String HOST_KEY_FINGERPRINT_SECRET_ALIAS = "hostKeyFingerprintSecretAlias";
     private static final String CONTENT_TYPE = "contentType";
 
     private SftpDataAddress() {
@@ -67,7 +67,7 @@ public class SftpDataAddress extends DataAddress {
 
     @JsonIgnore
     public String getAuthType() {
-        return getStringProperty(AUTH_TYPE, PASSWORD_AUTH_TYPE);
+        return getStringProperty(AUTH_TYPE, AUTH_TYPE_PASSWORD);
     }
 
     @JsonIgnore
@@ -86,8 +86,8 @@ public class SftpDataAddress extends DataAddress {
     }
 
     @JsonIgnore
-    public String getPublicSshKeySecretAlias() {
-        return getStringProperty(PUBLIC_SSH_KEY_SECRET_ALIAS);
+    public String getHostKeyFingerprintSecretAlias() {
+        return getStringProperty(HOST_KEY_FINGERPRINT_SECRET_ALIAS);
     }
 
     @JsonIgnore
@@ -147,8 +147,8 @@ public class SftpDataAddress extends DataAddress {
             return this;
         }
 
-        public Builder publicSshKeySecretAlias(String alias) {
-            this.property(PUBLIC_SSH_KEY_SECRET_ALIAS, alias);
+        public Builder hostKeyFingerprintSecretAlias(String alias) {
+            this.property(HOST_KEY_FINGERPRINT_SECRET_ALIAS, alias);
             return this;
         }
 
