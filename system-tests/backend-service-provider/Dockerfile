@@ -1,13 +1,12 @@
-# -buster is required to have apt available
-FROM openjdk:17.0.2-slim-bullseye
+FROM eclipse-temurin:17.0.20_8-jdk-alpine-3.23
 
 # Optional JVM arguments, such as memory settings
 ARG JVM_ARGS=""
 
-# Install curl, then delete apt indexes to save image space
-RUN apt update \
-    && apt install -y curl \
-    && rm -rf /var/cache/apt/archives /var/lib/apt/lists
+# Install curl, then delete apk cache to save image space
+RUN apk update \
+    && apk add --no-cache curl \
+    && rm -rf /var/cache/apk/*
 
 WORKDIR /app
 
