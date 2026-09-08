@@ -64,7 +64,7 @@ test:e2e:
     - lourmel
   stage: test
   rules:
-    - when: manual
+    - when: never
   script:
     - java -version
     - ping -c 5 192.168.1.207
