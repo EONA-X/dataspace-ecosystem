@@ -24,7 +24,7 @@ import static java.util.Collections.emptyMap;
 @JsonDeserialize(builder = DataAddress.Builder.class)
 public class SftpDataAddress extends DataAddress {
 
-    public static final String SFTP_TYPE = "Sftp-Pull";
+    public static final String SFTP_TYPE = "Sftp";
 
     public static final String AUTH_TYPE_PASSWORD = "password";
     public static final String AUTH_TYPE_KEY = "key";
