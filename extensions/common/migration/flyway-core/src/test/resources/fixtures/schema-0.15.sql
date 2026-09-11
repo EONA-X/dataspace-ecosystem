@@ -1,10 +1,3 @@
--- Schema created by EDC 0.15.0, assembled from the upstream Connector tag v0.15.0 and the DSE
--- telemetry-store-sql of branch test/edc-0.15.0, plus the IdentityHub tag v0.15.0.
---
--- Unlike schema-0.14.sql this one cannot be checked against the classpath while the build is on
--- 0.14.0: it describes a version this branch does not depend on. UpstreamSchemaFixtureTest starts
--- verifying it once the EDC version is bumped.
-
 -- ---- transfer-process-schema.sql
 -- Statements are designed for and tested with Postgres only!
 
@@ -420,6 +413,34 @@ CREATE UNIQUE INDEX IF NOT EXISTS record_id_uindex
     ON edc_telemetry_record (record_id);
 
 CREATE INDEX IF NOT EXISTS telemetry_state ON edc_telemetry_record (state,state_time_stamp);
+-- ---- accesstoken-data-schema.sql
+/*
+ *  Copyright (c) 2024 Bayerische Motoren Werke Aktiengesellschaft (BMW AG)
+ *
+ *  This program and the accompanying materials are made available under the
+ *  terms of the Apache License, Version 2.0 which is available at
+ *  https://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  SPDX-License-Identifier: Apache-2.0
+ *
+ *  Contributors:
+ *       Bayerische Motoren Werke Aktiengesellschaft (BMW AG) - initial API and implementation
+ *
+ */
+
+-- Statements are designed for and tested with Postgres only!
+
+CREATE TABLE IF NOT EXISTS edc_accesstokendata
+(
+    id           VARCHAR NOT NULL PRIMARY KEY,
+    claim_token  JSON    NOT NULL,
+    data_address JSON    NOT NULL,
+    additional_properties JSON DEFAULT '{}'
+);
+
+COMMENT ON COLUMN edc_accesstokendata.claim_token IS 'ClaimToken serialized as JSON map';
+COMMENT ON COLUMN edc_accesstokendata.data_address IS 'DataAddress serialized as JSON map';
+COMMENT ON COLUMN edc_accesstokendata.additional_properties IS 'Optional Additional properties serialized as JSON map';
 
 -- ---- credentials-schema.sql
 /*
@@ -818,5 +839,14 @@ CREATE TABLE IF NOT EXISTS edc_issuance_process
 
 -- This will help to identify states that need to be transitioned without a table scan when the entries grow
 CREATE INDEX IF NOT EXISTS issuance_process_state ON edc_issuance_process (state,state_time_stamp);
+
+
+-- ---- jti-validation-schema.sql
+CREATE TABLE IF NOT EXISTS edc_jti_validation
+(
+    token_id   VARCHAR NOT NULL PRIMARY KEY,
+    expires_at BIGINT -- expiry time in epoch millis
+);
+
 
 

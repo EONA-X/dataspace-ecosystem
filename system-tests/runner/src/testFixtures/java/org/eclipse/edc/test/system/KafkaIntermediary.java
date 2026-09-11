@@ -33,14 +33,14 @@ public class KafkaIntermediary {
                     while ((line = reader.readLine()) != null) {
                         outputCapture.append(line).append("\n");
                     }
-                } catch (Exception ignored) {
+                } catch (Exception expected) {
                 }
             });
             drainThread.setDaemon(true);
             drainThread.start();
 
             try (OutputStream os = process.getOutputStream();
-                 PrintWriter writer = new PrintWriter(os, true)) {
+                    PrintWriter writer = new PrintWriter(os, true)) {
                 writer.println(message);
             }
 
@@ -99,7 +99,7 @@ public class KafkaIntermediary {
                         return;
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (Exception expected) {
             }
         });
 

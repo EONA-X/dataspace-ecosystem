@@ -21,10 +21,10 @@ import org.eclipse.edc.spi.system.ServiceExtension;
 import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.telemetry.Telemetry;
 import org.eclipse.edc.web.spi.WebService;
-import org.eclipse.edc.web.spi.configuration.ApiContext;
 
 public class BillingConsumptionMetricsExtension implements ServiceExtension {
 
+    private static final String PUBLIC_CONTEXT = "public";
     private static final String DATA_CONTEXT = "data";
 
     @Inject
@@ -42,8 +42,9 @@ public class BillingConsumptionMetricsExtension implements ServiceExtension {
 
     @Override
     public void initialize(ServiceExtensionContext context) {
-        var publisher = new DataConsumptionMetricsPublisher(telemetryRecordStore, monitor, telemetry, context.getParticipantId());
-        webService.registerResource(ApiContext.PUBLIC, publisher);
+        var participantId = context.getSetting("edc.participant.id", ServiceExtensionContext.ANONYMOUS_PARTICIPANT);
+        var publisher = new DataConsumptionMetricsPublisher(telemetryRecordStore, monitor, telemetry, participantId);
+        webService.registerResource(PUBLIC_CONTEXT, publisher);
         webService.registerResource(DATA_CONTEXT, publisher);
     }
 

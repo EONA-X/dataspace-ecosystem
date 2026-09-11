@@ -24,7 +24,7 @@ public class DidWebParserExtension implements ServiceExtension {
         return new DidWebParser() {
             @Override
             public String parse(URI url, Charset charset) {
-                return context.getParticipantId();
+                return context.getSetting("edc.participant.id", ServiceExtensionContext.ANONYMOUS_PARTICIPANT);
             }
         };
     }

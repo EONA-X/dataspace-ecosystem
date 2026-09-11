@@ -16,7 +16,6 @@ package org.eclipse.edc.telemetry.store.sql.schema;
 
 import org.eclipse.edc.runtime.metamodel.annotation.ExtensionPoint;
 import org.eclipse.edc.spi.query.QuerySpec;
-import org.eclipse.edc.sql.lease.LeaseStatements;
 import org.eclipse.edc.sql.lease.StatefulEntityStatements;
 import org.eclipse.edc.sql.statement.SqlStatements;
 import org.eclipse.edc.sql.translation.SqlQueryStatement;
@@ -25,7 +24,7 @@ import org.eclipse.edc.sql.translation.SqlQueryStatement;
  * Defines queries used by the SqlAssetIndexServiceExtension.
  */
 @ExtensionPoint
-public interface TelemetryRecordStatements extends SqlStatements, StatefulEntityStatements, LeaseStatements {
+public interface TelemetryRecordStatements extends SqlStatements, StatefulEntityStatements {
 
     default String getTelemetryRecordTable() {
         return "edc_telemetry_record";
@@ -100,5 +99,12 @@ public interface TelemetryRecordStatements extends SqlStatements, StatefulEntity
      * @return A {@link SqlQueryStatement} that contains the SQL and statement parameters
      */
     SqlQueryStatement createQuery(QuerySpec query);
+
+    /**
+     * Generates a SQL query selecting records not currently leased, joining on the lease table.
+     *
+     * @return A {@link SqlQueryStatement} that contains the SQL and statement parameters
+     */
+    SqlQueryStatement createNextNotLeasedQuery(QuerySpec query);
 
 }

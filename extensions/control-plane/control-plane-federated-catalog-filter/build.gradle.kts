@@ -12,4 +12,9 @@ dependencies {
     implementation(libs.edc.lib.http)
     api(project(":spi:common-spi"))
     api(project(":spi:federated-catalog-filter-spi"))
+
+    testImplementation(libs.edc.core.junit)
+    testImplementation(libs.edc.core.jersey)
+    testImplementation(libs.mockserver.netty)
+    testImplementation(libs.mockserver.client)
 }

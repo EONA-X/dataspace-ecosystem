@@ -28,7 +28,8 @@ public class FlywayMigrationRunner {
 
     /**
      * Retries of the whole {@code migrate()} call, for the one race {@code lockRetryCount} does not
-     * cover: two runtimes booting against a brand new, empty database both find no
+     * cover: two runtimes booting against a brand new, empty database (edc.sql.schema.autocreate is
+     * now false, so this happens on a participant's first ever boot) both find no
      * {@code flyway_schema_history} table and race to create and baseline it. Flyway's own lock lives
      * *in* that table, so this specific race happens before the lock exists to serialise on --
      * whichever loses gets "Unable to baseline schema history table ... as it already exists, and is
@@ -59,10 +60,12 @@ public class FlywayMigrationRunner {
                 .locations(locations.toArray(new String[0]))
                 .placeholders(placeholders)
                 .table(HISTORY_TABLE)
-                // The application still creates the tables (edc.sql.schema.autocreate=true), so every
-                // database Flyway sees may already be populated. Baselining at version 0 lets every
-                // migration replay; they are written to be idempotent. Manual migrations were applied
-                // in the past without being recorded, so the prior state of a database is not knowable.
+                // A database Flyway sees may already be populated -- by SqlSchemaBootstrapper on a
+                // runtime still running with edc.sql.schema.autocreate=true, or by a production
+                // database that predates this migration mechanism entirely. Baselining at version 0
+                // lets every migration replay; they are written to be idempotent. Manual migrations
+                // were applied in the past without being recorded, so the prior state of a database is
+                // not knowable.
                 .baselineOnMigrate(true)
                 .baselineVersion("0")
                 // A runtime sees history rows written by the other runtimes sharing this database,

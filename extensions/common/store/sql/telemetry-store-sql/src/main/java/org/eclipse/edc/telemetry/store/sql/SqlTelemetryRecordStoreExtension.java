@@ -24,6 +24,7 @@ import org.eclipse.edc.spi.system.ServiceExtensionContext;
 import org.eclipse.edc.spi.types.TypeManager;
 import org.eclipse.edc.sql.QueryExecutor;
 import org.eclipse.edc.sql.bootstrapper.SqlSchemaBootstrapper;
+import org.eclipse.edc.sql.lease.spi.SqlLeaseContextBuilderProvider;
 import org.eclipse.edc.telemetry.store.sql.schema.TelemetryRecordStatements;
 import org.eclipse.edc.telemetry.store.sql.schema.postgres.PostgresTelemetryRecordStatements;
 import org.eclipse.edc.transaction.datasource.spi.DataSourceRegistry;
@@ -61,6 +62,9 @@ public class SqlTelemetryRecordStoreExtension implements ServiceExtension {
     @Inject
     private Clock clock;
 
+    @Inject
+    private SqlLeaseContextBuilderProvider leaseContextBuilderProvider;
+
     @Override
     public String name() {
         return EXTENSION_NAME;
@@ -69,18 +73,18 @@ public class SqlTelemetryRecordStoreExtension implements ServiceExtension {
     @Provider
     public TelemetryRecordStore telemetryRecordStore(ServiceExtensionContext context) {
         sqlSchemaBootstrapper.addStatementFromResource(dataSourceName, "telemetry-record-schema.sql");
+        var dialect = getDialect();
         return new SqlTelemetryRecordStore(
                 dataSourceRegistry,
                 dataSourceName,
                 transactionContext,
                 typeManager.getMapper(),
-                getDialect(),
+                dialect,
                 queryExecutor,
-                clock,
-                context.getRuntimeId());
+                leaseContextBuilderProvider.createContextBuilder(dialect.getTelemetryRecordTable()));
     }
 
     private TelemetryRecordStatements getDialect() {
-        return dialect != null ? dialect : new PostgresTelemetryRecordStatements();
+        return dialect != null ? dialect : new PostgresTelemetryRecordStatements(leaseContextBuilderProvider.getStatements(), clock);
     }
 }

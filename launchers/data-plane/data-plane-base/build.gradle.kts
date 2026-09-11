@@ -8,6 +8,8 @@ dependencies {
     runtimeOnly(project(":extensions:data-plane:data-plane-http-header-secrets"))
     runtimeOnly(project(":extensions:data-plane:sftp-source"))
     runtimeOnly(project(":core:common:telemetry-record-store"))
+    runtimeOnly(project(":extensions:common:participant-context-single-vault-seed"))
+    runtimeOnly(libs.edc.participant.context.config.core)
 
     runtimeOnly(libs.edc.ext.dpf.kafka)
     runtimeOnly(libs.edc.core.edr.store)

@@ -58,15 +58,16 @@ public class TelemetryServiceCoreExtension implements ServiceExtension {
     }
 
     @Provider
-    public TelemetryService telemetryService() {
-        return new TelemetryServiceImpl(telemetryServiceTokenValidator(), policyEngine, telemetryPolicy, credentialFactory);
+    public TelemetryService telemetryService(ServiceExtensionContext context) {
+        return new TelemetryServiceImpl(telemetryServiceTokenValidator(context), policyEngine, telemetryPolicy, credentialFactory);
     }
 
 
     @Provider
-    public TelemetryServiceTokenValidator telemetryServiceTokenValidator() {
+    public TelemetryServiceTokenValidator telemetryServiceTokenValidator(ServiceExtensionContext context) {
         if (telemetryServiceTokenValidator == null) {
-            telemetryServiceTokenValidator = new TelemetryServiceTokenValidatorImpl(identityService, policyEngine, monitor, participantAgentService, dataspaceProfileContextRegistry);
+            String participantId = context.getSetting("edc.participant.id", ServiceExtensionContext.ANONYMOUS_PARTICIPANT);
+            telemetryServiceTokenValidator = new TelemetryServiceTokenValidatorImpl(identityService, policyEngine, monitor, participantAgentService, dataspaceProfileContextRegistry, participantId);
         }
         return telemetryServiceTokenValidator;
     }

@@ -20,18 +20,21 @@ public class IdentityServiceValidator {
 
     private final Monitor monitor;
 
+    private final String participantId;
+
     protected static final String READ_ALL_CREDENTIAL_SCOPE = "%s:VerifiableCredential:read".formatted(DSE_VC_TYPE_SCOPE_ALIAS);
 
     private static final String DISCOVERABILITY_USE_ACTION = "discoverability:use";
 
-    public IdentityServiceValidator(IdentityService identityService, Monitor monitor) {
+    public IdentityServiceValidator(IdentityService identityService, Monitor monitor, String participantId) {
         this.identityService = identityService;
         this.monitor = monitor;
+        this.participantId = participantId;
     }
 
     public ClaimToken validate(TokenRepresentation uncheckedToken) {
         List<String> scopes = List.of(READ_ALL_CREDENTIAL_SCOPE);
-        Result<ClaimToken> validClaims = identityService.verifyJwtToken(uncheckedToken, createContext(scopes));
+        Result<ClaimToken> validClaims = identityService.verifyJwtToken(participantId, uncheckedToken, createContext(scopes));
         if (validClaims.failed()) {
             monitor.warning("Token validation failed " + validClaims.getFailureMessages());
         }

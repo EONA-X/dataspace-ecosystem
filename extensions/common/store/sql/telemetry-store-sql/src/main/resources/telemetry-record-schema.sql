@@ -15,12 +15,12 @@
 -- table: edc_lease
 CREATE TABLE IF NOT EXISTS edc_lease
 (
-    leased_by      VARCHAR NOT NULL,
+    leased_by      VARCHAR               NOT NULL,
     leased_at      BIGINT,
-    lease_duration INTEGER NOT NULL,
-    lease_id       VARCHAR NOT NULL
-                   CONSTRAINT lease_pk
-                   PRIMARY KEY
+    lease_duration INTEGER DEFAULT 60000 NOT NULL,
+    resource_id    VARCHAR NOT NULL,
+    resource_kind  VARCHAR NOT NULL,
+    PRIMARY KEY (resource_id, resource_kind)
 );
 
 COMMENT ON COLUMN edc_lease.leased_at IS 'posix timestamp of lease';
@@ -41,11 +41,7 @@ CREATE TABLE IF NOT EXISTS edc_telemetry_record
     created_at         BIGINT NOT NULL,
     updated_at         BIGINT NOT NULL,
     trace_context      JSON,
-    error_detail       VARCHAR,
-    lease_id           VARCHAR
-                       CONSTRAINT participant_lease_lease_id_fk
-                       REFERENCES edc_lease
-                       ON DELETE SET NULL
+    error_detail       VARCHAR
 );
 
 COMMENT ON COLUMN edc_telemetry_record.properties IS 'Telemetry Record properties serialized as JSON';
@@ -54,8 +50,5 @@ COMMENT ON COLUMN edc_telemetry_record.trace_context IS 'Java Map serialized as 
 
 CREATE UNIQUE INDEX IF NOT EXISTS record_id_uindex
     ON edc_telemetry_record (record_id);
-
-CREATE UNIQUE INDEX IF NOT EXISTS lease_lease_id_uindex
-    ON edc_lease (lease_id);
 
 CREATE INDEX IF NOT EXISTS telemetry_state ON edc_telemetry_record (state,state_time_stamp);

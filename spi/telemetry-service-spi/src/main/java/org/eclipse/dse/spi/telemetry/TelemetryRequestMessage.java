@@ -1,36 +1,16 @@
 package org.eclipse.dse.spi.telemetry;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import org.eclipse.edc.spi.types.domain.message.RemoteMessage;
+import org.eclipse.edc.spi.types.domain.message.ProtocolRemoteMessage;
 
 import java.util.Objects;
 
-public class TelemetryRequestMessage implements RemoteMessage {
+public class TelemetryRequestMessage extends ProtocolRemoteMessage {
 
-    private String protocol;
-    private String counterPartyAddress;
-    private String counterPartyId;
-
-    @Override
-    public String getProtocol() {
-        return protocol;
-    }
-
-    @Override
-    public String getCounterPartyAddress() {
-        return counterPartyAddress;
-    }
-
-    @Override
-    public String getCounterPartyId() {
-        return counterPartyId;
-    }
-
-    public static class Builder {
-        private final TelemetryRequestMessage message;
+    public static class Builder extends ProtocolRemoteMessage.Builder<TelemetryRequestMessage, Builder> {
 
         private Builder() {
-            this.message = new TelemetryRequestMessage();
+            super(new TelemetryRequestMessage());
         }
 
         @JsonCreator
@@ -38,21 +18,12 @@ public class TelemetryRequestMessage implements RemoteMessage {
             return new Builder();
         }
 
-        public Builder protocol(String protocol) {
-            this.message.protocol = protocol;
+        @Override
+        public Builder self() {
             return this;
         }
 
-        public Builder counterPartyAddress(String counterPartyAddress) {
-            this.message.counterPartyAddress = counterPartyAddress;
-            return this;
-        }
-
-        public Builder counterPartyId(String counterPartyId) {
-            this.message.counterPartyId = counterPartyId;
-            return this;
-        }
-
+        @Override
         public TelemetryRequestMessage build() {
             Objects.requireNonNull(message.protocol, "protocol cannot be null");
             return message;

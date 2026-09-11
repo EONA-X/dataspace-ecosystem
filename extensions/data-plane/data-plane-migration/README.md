@@ -17,7 +17,8 @@ module — to be moved when the remaining store modules get their migration sets
 
 ## Content
 
-- `V20260804.3__edc_0_15_data_plane.sql` — EDC 0.14.0 → 0.15.0, ported from
-  `sql-migrations-v0.15/data-plane-migration.sql` (MR !69).
+- `V20260804.3__edc_0_15_data_plane.sql` — EDC 0.14.0 → 0.15.0, ported from the manual
+  migration script originally proposed in MR !69 (superseded by this Flyway migration, no
+  longer in the repo).
 
 See `extensions/common/migration/flyway-core/README.md` for the migration conventions.

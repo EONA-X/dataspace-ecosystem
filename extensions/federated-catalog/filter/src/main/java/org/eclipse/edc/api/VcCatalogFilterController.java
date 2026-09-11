@@ -33,12 +33,14 @@ public class VcCatalogFilterController implements FederatedCatalogFilterApiV2 {
     private final IdentityService identityService;
     private final TypeTransformerRegistry transformerRegistry;
     private final Monitor monitor;
+    private final String participantId;
 
     public VcCatalogFilterController(ServiceExtensionContext context, Monitor monitor, FederatedCatalogService catalogService, IdentityService identityService, TypeTransformerRegistry transformerRegistry) {
         this.monitor = monitor;
         this.federatedCatalogService = catalogService;
         this.identityService = identityService;
         this.transformerRegistry = transformerRegistry;
+        this.participantId = context.getSetting("edc.participant.id", ServiceExtensionContext.ANONYMOUS_PARTICIPANT);
     }
 
     @Override
@@ -49,7 +51,7 @@ public class VcCatalogFilterController implements FederatedCatalogFilterApiV2 {
         }
         try {
             Collection<Catalog> filtered = null;
-            IdentityServiceValidator validator =  new IdentityServiceValidator(identityService, monitor);
+            IdentityServiceValidator validator =  new IdentityServiceValidator(identityService, monitor, participantId);
             ClaimToken credentials = validator.validate(req.tokenRepresentation());
             if (credentials != null) {
                 filtered = federatedCatalogService.fetchAndFilterCatalog(credentials, req.participantDid());

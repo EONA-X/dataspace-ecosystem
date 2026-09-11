@@ -92,7 +92,7 @@ public class CatalogFilteringController implements FederatedCatalogFilteringApiV
                 .claims(AUDIENCE, authorityDid);
 
         var tokenParameters = tokenParametersBuilder.build();
-        Result<TokenRepresentation> vcToken = identityService.obtainClientCredentials(tokenParameters);
+        Result<TokenRepresentation> vcToken = identityService.obtainClientCredentials(ownDid, tokenParameters);
         if (vcToken.succeeded()) {
             TokenRepresentation token = vcToken.getContent();
             FilterRequest filterRequest = new FilterRequest(token, ownDid);

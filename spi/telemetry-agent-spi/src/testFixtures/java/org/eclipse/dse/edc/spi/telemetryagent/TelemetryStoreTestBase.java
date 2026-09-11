@@ -26,6 +26,7 @@ import static org.eclipse.dse.edc.spi.telemetryagent.TelemetryRecordStates.RECEI
 import static org.eclipse.dse.edc.spi.telemetryagent.TelemetryRecordStates.SENT;
 import static org.eclipse.edc.spi.constants.CoreConstants.EDC_NAMESPACE;
 import static org.eclipse.edc.spi.query.Criterion.criterion;
+import static org.eclipse.edc.spi.result.StoreFailure.Reason.ALREADY_LEASED;
 import static org.eclipse.edc.spi.result.StoreFailure.Reason.NOT_FOUND;
 
 public abstract class TelemetryStoreTestBase {
@@ -178,9 +179,10 @@ public abstract class TelemetryStoreTestBase {
 
             var newRecord = getRecord(record.getId());
 
-            // update should break lease
             assertThat(isLeasedBy(record.getId(), "someone-else")).isTrue();
-            assertThatThrownBy(() -> getTelemetryStore().save(newRecord)).isInstanceOf(IllegalStateException.class);
+            var result = getTelemetryStore().save(newRecord);
+            assertThat(result.failed()).isTrue();
+            assertThat(result.reason()).isEqualTo(ALREADY_LEASED);
         }
     }
 

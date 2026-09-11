@@ -3,9 +3,11 @@ package org.eclipse.dse.identityhub.seed;
 import org.eclipse.edc.iam.did.spi.document.Service;
 import org.eclipse.edc.identityhub.spi.participantcontext.ParticipantContextService;
 import org.eclipse.edc.identityhub.spi.participantcontext.model.CreateParticipantContextResponse;
+import org.eclipse.edc.identityhub.spi.participantcontext.model.KeyDescriptor;
 import org.eclipse.edc.identityhub.spi.participantcontext.model.ParticipantContext;
 import org.eclipse.edc.json.JacksonTypeManager;
 import org.eclipse.edc.junit.extensions.DependencyInjectionExtension;
+import org.eclipse.edc.participantcontext.spi.config.service.ParticipantContextConfigService;
 import org.eclipse.edc.spi.EdcException;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.result.ServiceResult;
@@ -26,6 +28,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.eclipse.dse.identityhub.seed.ParticipantContextSeedExtension.PRIVATE_KEY_ALIAS_PROPERTY;
 import static org.eclipse.dse.identityhub.seed.ParticipantContextSeedExtension.PUBLIC_KEY_ALIAS_PROPERTY;
 import static org.eclipse.dse.identityhub.seed.ParticipantContextSeedExtension.SUPERUSER_SERVICES_PROPERTY;
+import static org.eclipse.dse.identityhub.seed.ParticipantContextSeedExtension.VAULT_CONFIG_PROPERTY;
+import static org.eclipse.dse.identityhub.seed.ParticipantContextSeedExtension.VAULT_TOKEN_PROPERTY;
+import static org.eclipse.dse.identityhub.seed.ParticipantContextSeedExtension.VAULT_URL_PROPERTY;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mockito.mock;
@@ -39,28 +44,37 @@ class ParticipantContextSeedExtensionTest {
 
     private static final String PUBLIC_KEY_ALIAS = UUID.randomUUID().toString();
     private static final String PRIVATE_KEY_ALIAS = UUID.randomUUID().toString();
+    private static final String PARTICIPANT_ID = UUID.randomUUID().toString();
+    private static final String VAULT_URL = "http://" + PARTICIPANT_ID + "-vault:8200";
+    private static final String VAULT_TOKEN = UUID.randomUUID().toString();
 
     private final TypeManager typeManager = new JacksonTypeManager();
     private final List<Service> services = List.of(createService(), createService());
     private final ParticipantContextService participantContextService = mock();
+    private final ParticipantContextConfigService configService = mock();
     private final Vault vault = mock();
     private final Monitor monitor = mock();
 
     @BeforeEach
     void setup(ServiceExtensionContext context) {
         context.registerService(ParticipantContextService.class, participantContextService);
+        context.registerService(ParticipantContextConfigService.class, configService);
         context.registerService(Vault.class, vault);
         context.registerService(Monitor.class, monitor);
         context.registerService(TypeManager.class, typeManager);
+        when(configService.save(any())).thenReturn(ServiceResult.success());
         when(context.getConfig()).thenReturn(ConfigFactory.fromMap(Map.of(PUBLIC_KEY_ALIAS_PROPERTY, PUBLIC_KEY_ALIAS,
                 PRIVATE_KEY_ALIAS_PROPERTY, PRIVATE_KEY_ALIAS,
-                SUPERUSER_SERVICES_PROPERTY, typeManager.writeValueAsString(services)))
+                SUPERUSER_SERVICES_PROPERTY, typeManager.writeValueAsString(services),
+                "edc.participant.id", PARTICIPANT_ID,
+                VAULT_URL_PROPERTY, VAULT_URL,
+                VAULT_TOKEN_PROPERTY, VAULT_TOKEN))
         );
     }
 
     @Test
-    void superUserAlreadyExists_shouldDoNothing(ParticipantContextSeedExtension ext, ServiceExtensionContext context) {
-        when(participantContextService.getParticipantContext(context.getParticipantId()))
+    void superUserAlreadyExists_shouldReseedVaultConfigButNotRecreate(ParticipantContextSeedExtension ext, ServiceExtensionContext context) {
+        when(participantContextService.getParticipantContext(PARTICIPANT_ID))
                 .thenReturn(ServiceResult.success(mock()));
 
         ext.initialize(context);
@@ -68,15 +82,20 @@ class ParticipantContextSeedExtensionTest {
 
         verifyNoMoreInteractions(vault);
         verify(participantContextService, never()).createParticipantContext(any());
+        verify(configService).save(assertArg(cfg -> {
+            assertThat(cfg.getParticipantContextId()).isEqualTo(PARTICIPANT_ID);
+            var vaultConfigJson = cfg.getPrivateEntries().get(VAULT_CONFIG_PROPERTY);
+            assertThat(vaultConfigJson).isNotNull().contains(VAULT_URL).contains(VAULT_TOKEN);
+        }));
     }
 
     @Test
     void createSuperUser(ParticipantContextSeedExtension ext, ServiceExtensionContext context) {
         var apiTokenAlias = UUID.randomUUID().toString();
-        when(participantContextService.getParticipantContext(context.getParticipantId()))
+        when(participantContextService.getParticipantContext(PARTICIPANT_ID))
                 .thenReturn(ServiceResult.notFound("not found"))
                 .thenReturn(ServiceResult.success(ParticipantContext.Builder.newInstance()
-                        .participantContextId(context.getParticipantId())
+                        .participantContextId(PARTICIPANT_ID)
                         .apiTokenAlias(apiTokenAlias)
                         .build()));
         var publicKeyPem = UUID.randomUUID().toString();
@@ -84,7 +103,8 @@ class ParticipantContextSeedExtensionTest {
         when(participantContextService.createParticipantContext(
                 assertArg(participantManifest -> {
                     assertThat(participantManifest.getServiceEndpoints()).usingRecursiveComparison().ignoringCollectionOrder().isEqualTo(services);
-                    assertThat(participantManifest.getKey().getPublicKeyPem()).isEqualTo(publicKeyPem);
+                    assertThat(participantManifest.getKeys()).singleElement()
+                            .extracting(KeyDescriptor::getPublicKeyPem).isEqualTo(publicKeyPem);
                 }))
         ).thenReturn(ServiceResult.success(new CreateParticipantContextResponse("some-key", null, null)));
 
@@ -96,8 +116,27 @@ class ParticipantContextSeedExtensionTest {
     }
 
     @Test
+    void createSuperUser_shouldSeedVaultConfig(ParticipantContextSeedExtension ext, ServiceExtensionContext context) {
+        when(participantContextService.getParticipantContext(PARTICIPANT_ID))
+                .thenReturn(ServiceResult.notFound("not found"));
+        var publicKeyPem = UUID.randomUUID().toString();
+        when(vault.resolveSecret(PUBLIC_KEY_ALIAS)).thenReturn(publicKeyPem);
+        when(participantContextService.createParticipantContext(
+                assertArg(participantManifest -> {
+                    var vaultConfigJson = (String) participantManifest.getProperty(VAULT_CONFIG_PROPERTY);
+                    assertThat(vaultConfigJson).isNotNull().contains(VAULT_URL).contains(VAULT_TOKEN);
+                }))
+        ).thenReturn(ServiceResult.success(new CreateParticipantContextResponse("some-key", null, null)));
+
+        ext.initialize(context);
+        ext.start();
+
+        verify(participantContextService).createParticipantContext(any());
+    }
+
+    @Test
     void createParticipantFails_shouldThrow(ParticipantContextSeedExtension ext, ServiceExtensionContext context) {
-        when(participantContextService.getParticipantContext(context.getParticipantId()))
+        when(participantContextService.getParticipantContext(PARTICIPANT_ID))
                 .thenReturn(ServiceResult.notFound("not found"));
         var publicKeyPem = UUID.randomUUID().toString();
         when(vault.resolveSecret(PUBLIC_KEY_ALIAS)).thenReturn(publicKeyPem);

@@ -1,6 +1,5 @@
 package org.eclipse.edc.dse.dataplane.api;
 
-import org.assertj.core.api.Assertions;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpDataAddress;
 import org.eclipse.edc.edr.spi.store.EndpointDataReferenceStore;
 import org.eclipse.edc.edr.spi.types.EndpointDataReferenceEntry;
@@ -25,16 +24,6 @@ import static org.mockito.Mockito.when;
 class ConsumerDataPlaneAuthorizationServiceTest {
     private final EndpointDataReferenceStore edrStore = mock();
     private final org.eclipse.edc.dse.dataplane.api.ConsumerDataPlaneAuthorizationService service = new ConsumerDataPlaneAuthorizationService(edrStore);
-
-    @Test
-    void createEndpointDataReference() {
-        Assertions.assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> service.createEndpointDataReference(null));
-    }
-
-    @Test
-    void revokeEndpointDataReference() {
-        Assertions.assertThatExceptionOfType(UnsupportedOperationException.class).isThrownBy(() -> service.revokeEndpointDataReference(null, null));
-    }
 
     @Test
     void authorize_success() {

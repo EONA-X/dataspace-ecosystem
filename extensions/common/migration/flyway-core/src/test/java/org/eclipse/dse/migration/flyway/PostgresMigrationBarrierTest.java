@@ -22,7 +22,7 @@ class PostgresMigrationBarrierTest {
     private final MigrationBarrier barrier = new MigrationBarrier(monitor);
 
     @Test
-    void awaitAllBaselines_releasesOnceEveryExpectedModuleHasSignaled() throws Exception {
+    void blockUntilSiblingsFinishNonSharedMigrations_releasesOnceEveryExpectedModuleHasSignaled() throws Exception {
         var database = PostgresTestDatabase.createEmpty();
         var expected = Set.of("control-plane", "data-plane");
         var executor = Executors.newFixedThreadPool(2);
@@ -48,7 +48,7 @@ class PostgresMigrationBarrierTest {
     }
 
     @Test
-    void awaitAllBaselines_timesOut_whenAnExpectedModuleNeverSignals() {
+    void blockUntilSiblingsFinishNonSharedMigrations_timesOut_whenAnExpectedModuleNeverSignals() {
         var database = PostgresTestDatabase.createEmpty();
 
         assertThatExceptionOfType(EdcPersistenceException.class)
@@ -58,7 +58,7 @@ class PostgresMigrationBarrierTest {
     }
 
     @Test
-    void awaitAllBaselines_returnsImmediately_whenThisModuleIsAllThatsExpected() {
+    void blockUntilSiblingsFinishNonSharedMigrations_returnsImmediately_whenThisModuleIsAllThatsExpected() {
         var database = PostgresTestDatabase.createEmpty();
 
         // No exception, no timeout: reaching the end of this test method is the assertion.

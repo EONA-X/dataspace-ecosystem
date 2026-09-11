@@ -40,8 +40,9 @@ public class FederatedCatalogFilteringExtension implements ServiceExtension {
 
     @Override
     public void initialize(ServiceExtensionContext context) {
+        var participantId = context.getSetting("edc.participant.id", ServiceExtensionContext.ANONYMOUS_PARTICIPANT);
         webService.registerResource(ApiContext.MANAGEMENT, new CatalogFilteringController(
-                new AuthorityCatalogDidResolver(didResolverRegistry, authorityDid), context.getMonitor(), identityService, context.getParticipantId(), clock, authorityDid, didResolverRegistry, new ObjectMapper()));
+                new AuthorityCatalogDidResolver(didResolverRegistry, authorityDid), context.getMonitor(), identityService, participantId, clock, authorityDid, didResolverRegistry, new ObjectMapper()));
     }
 
 }

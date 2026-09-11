@@ -15,13 +15,16 @@
 package org.eclipse.edc.telemetry.store.sql.schema.postgres;
 
 import org.eclipse.edc.sql.dialect.PostgresDialect;
+import org.eclipse.edc.sql.lease.spi.LeaseStatements;
 import org.eclipse.edc.sql.translation.PostgresqlOperatorTranslator;
 import org.eclipse.edc.telemetry.store.sql.schema.TelemetryBaseSqlDialectStatements;
 
+import java.time.Clock;
+
 public class PostgresTelemetryRecordStatements extends TelemetryBaseSqlDialectStatements {
 
-    public PostgresTelemetryRecordStatements() {
-        super(new PostgresqlOperatorTranslator());
+    public PostgresTelemetryRecordStatements(LeaseStatements leaseStatements, Clock clock) {
+        super(new PostgresqlOperatorTranslator(), leaseStatements, clock);
     }
 
     @Override

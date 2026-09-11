@@ -116,7 +116,7 @@ public class TelemetryServiceClientImpl implements TelemetryServiceClient {
                 .claims(AUDIENCE, authorityDid)
                 .build();
 
-        return identityService.obtainClientCredentials(tokenParameters)
+        return identityService.obtainClientCredentials(ownDid, tokenParameters)
                 .map(tokenRepresentation -> createRequest(url + SAS_TOKEN_PATH, tokenRepresentation.getToken()))
                 .compose(request -> httpClient.execute(request, List.of(FallbackFactories.retryWhenStatusIsNotIn(200, 204)), this::handleResponse));
     }

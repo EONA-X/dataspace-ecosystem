@@ -15,11 +15,14 @@ dependencies {
     runtimeOnly(libs.edc.dataplane.sql.bom)
     runtimeOnly(libs.edc.ext.vault.hashicorp)
 
-    // Schema migrations. The migration sets themselves (:extensions:common:migration:migration-shared
-    // and :extensions:data-plane:data-plane-migration) are added on the EDC 0.15.0 branch: they
-    // migrate the schema to the 0.15 shape, which a 0.14 runtime cannot use. Without them this
-    // extension registers nothing and is a no-op.
+    // Schema migrations. flyway-core is the engine; it applies whatever sets are on the classpath,
+    // and nothing without them. migration-shared owns edc_lease, which belongs to no single store --
+    // this runtime carries telemetry-store-sql, one of the nine schemas that declare it.
+    // The 0.14.0 baseline (V20260801.2) owns table creation now that edc.sql.schema.autocreate is
+    // false -- SqlSchemaBootstrapper no longer touches this database.
     runtimeOnly(project(":extensions:common:migration:flyway-core"))
+    runtimeOnly(project(":extensions:common:migration:migration-shared"))
+    runtimeOnly(project(":extensions:data-plane:data-plane-migration"))
 }
 
 application {

@@ -54,6 +54,7 @@ class UpstreamSchemaFixtureTest {
             "dataplane-schema.sql",
             "dataplane-instance-schema.sql",
             "telemetry-record-schema.sql",
+            "accesstoken-data-schema.sql",
             // identity-hub, and the stores its SQL BOM shares with the issuer-service
             "credentials-schema.sql",
             "did-schema.sql",
@@ -66,7 +67,9 @@ class UpstreamSchemaFixtureTest {
             "holder-schema.sql",
             "attestation-definition-schema.sql",
             "credential-definition-schema.sql",
-            "issuance-process-schema.sql");
+            "issuance-process-schema.sql",
+            // control-plane, identity-hub, issuer-service (not data-plane)
+            "jti-validation-schema.sql");
 
     @Test
     void fixtureMatchesTheSchemaThisEdcVersionCreates() throws IOException {

@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.edc.spi.transaction.datasource)
     implementation(libs.jackson.databind)
     implementation(libs.edc.sql.lease)
+    implementation(libs.edc.sql.lease.spi)
     implementation(libs.edc.core.sql)
     implementation(libs.edc.lib.sql)
     implementation(libs.edc.sql.bootstrapper)

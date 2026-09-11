@@ -2,7 +2,6 @@ package org.eclipse.edc.dse.dataplane.api;
 
 import jakarta.ws.rs.core.HttpHeaders;
 import org.eclipse.edc.connector.dataplane.http.spi.HttpDataAddress;
-import org.eclipse.edc.connector.dataplane.spi.DataFlow;
 import org.eclipse.edc.connector.dataplane.spi.iam.DataPlaneAuthorizationService;
 import org.eclipse.edc.edr.spi.store.EndpointDataReferenceStore;
 import org.eclipse.edc.edr.spi.types.EndpointDataReferenceEntry;
@@ -10,7 +9,6 @@ import org.eclipse.edc.spi.entity.Entity;
 import org.eclipse.edc.spi.query.Criterion;
 import org.eclipse.edc.spi.query.QuerySpec;
 import org.eclipse.edc.spi.result.Result;
-import org.eclipse.edc.spi.result.ServiceResult;
 import org.eclipse.edc.spi.types.domain.DataAddress;
 
 import java.util.Comparator;
@@ -30,11 +28,6 @@ public class ConsumerDataPlaneAuthorizationService implements DataPlaneAuthoriza
 
     public ConsumerDataPlaneAuthorizationService(EndpointDataReferenceStore edrStore) {
         this.edrStore = edrStore;
-    }
-
-    @Override
-    public Result<DataAddress> createEndpointDataReference(DataFlow dataFlowStartMessage) {
-        throw new UnsupportedOperationException("Cannot create EndpointDataReference");
     }
 
     @Override
@@ -58,11 +51,6 @@ public class ConsumerDataPlaneAuthorizationService implements DataPlaneAuthoriza
                 .map(addr -> toHttpDataAddress(addr, token))
                 .map(Result::success)
                 .orElse(failure -> Result.failure(failure.getFailureDetail()));
-    }
-
-    @Override
-    public ServiceResult<Void> revokeEndpointDataReference(String s, String s1) {
-        throw new UnsupportedOperationException("Cannot create EndpointDataReference");
     }
 
     private DataAddress toHttpDataAddress(DataAddress edr, String token) {

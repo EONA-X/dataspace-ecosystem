@@ -185,7 +185,7 @@ abstract class AbstractAuthority extends AbstractEntity {
     }
 
     private void createHolder(String name, String did) {
-        var dto = new HolderDto(did, did, name);
+        var dto = new HolderDto(did, did, name, Map.of());
 
         given()
                 .baseUri(issuerServiceAdminUrl())

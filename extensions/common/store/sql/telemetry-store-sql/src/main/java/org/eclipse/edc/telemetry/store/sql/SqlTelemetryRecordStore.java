@@ -23,7 +23,7 @@ import org.eclipse.edc.spi.query.Criterion;
 import org.eclipse.edc.spi.query.QuerySpec;
 import org.eclipse.edc.spi.result.StoreResult;
 import org.eclipse.edc.sql.QueryExecutor;
-import org.eclipse.edc.sql.lease.SqlLeaseContextBuilder;
+import org.eclipse.edc.sql.lease.spi.SqlLeaseContextBuilder;
 import org.eclipse.edc.sql.store.AbstractSqlStore;
 import org.eclipse.edc.telemetry.store.sql.schema.TelemetryRecordStatements;
 import org.eclipse.edc.transaction.datasource.spi.DataSourceRegistry;
@@ -34,7 +34,6 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Clock;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -49,14 +48,12 @@ public class SqlTelemetryRecordStore extends AbstractSqlStore implements Telemet
 
     private final TelemetryRecordStatements telemetryStatements;
     private final SqlLeaseContextBuilder leaseContext;
-    private final Clock clock;
 
     public SqlTelemetryRecordStore(DataSourceRegistry dataSourceRegistry, String dataSourceName, TransactionContext transactionContext, ObjectMapper objectMapper, TelemetryRecordStatements telemetryRecordStatements, QueryExecutor queryExecutor,
-                                   Clock clock, String leaseHolderName) {
+                                   SqlLeaseContextBuilder leaseContext) {
         super(dataSourceRegistry, dataSourceName, transactionContext, objectMapper, queryExecutor);
         this.telemetryStatements = Objects.requireNonNull(telemetryRecordStatements);
-        leaseContext = SqlLeaseContextBuilder.with(transactionContext, leaseHolderName, telemetryRecordStatements, clock, queryExecutor);
-        this.clock = clock;
+        this.leaseContext = leaseContext;
     }
 
     private void update(Connection connection, TelemetryRecord record) {
@@ -70,16 +67,20 @@ public class SqlTelemetryRecordStore extends AbstractSqlStore implements Telemet
     }
 
     @Override
-    public void save(TelemetryRecord record) {
+    public StoreResult<Void> save(TelemetryRecord record) {
         var id = record.getId();
-        transactionContext.execute(() -> {
+        return transactionContext.execute(() -> {
             try (var connection = getConnection()) {
                 if (!existsById(id, connection)) {
                     insert(connection, record);
                 } else {
-                    leaseContext.withConnection(connection).breakLease(id);
+                    var breakLeaseResult = leaseContext.withConnection(connection).breakLease(id);
+                    if (breakLeaseResult.failed()) {
+                        throw new IllegalStateException(breakLeaseResult.getFailureDetail());
+                    }
                     update(connection, record);
                 }
+                return StoreResult.success();
             } catch (SQLException e) {
                 throw new EdcPersistenceException(e);
             }
@@ -139,16 +140,14 @@ public class SqlTelemetryRecordStore extends AbstractSqlStore implements Telemet
         return transactionContext.execute(() -> {
             var filter = Arrays.stream(criteria).collect(toList());
             var querySpec = QuerySpec.Builder.newInstance().filter(filter).sortField("stateTimestamp").limit(max).build();
-            var statement = telemetryStatements.createQuery(querySpec)
-                    .addWhereClause(telemetryStatements.getNotLeasedFilter(), clock.millis());
+            var statement = telemetryStatements.createNextNotLeasedQuery(querySpec);
 
             try (
                     var connection = getConnection();
                     var stream = queryExecutor.query(connection, true, this::mapTelemetryRecord, statement.getQueryAsString(), statement.getParameters())
             ) {
-                var transferProcesses = stream.collect(Collectors.toList());
-                transferProcesses.forEach(transferProcess -> leaseContext.withConnection(connection).acquireLease(transferProcess.getId()));
-                return transferProcesses;
+                return stream.filter(record -> leaseContext.withConnection(connection).acquireLease(record.getId()).succeeded())
+                        .collect(Collectors.toList());
             } catch (SQLException e) {
                 throw new EdcPersistenceException(e);
             }
@@ -161,13 +160,10 @@ public class SqlTelemetryRecordStore extends AbstractSqlStore implements Telemet
             try (var connection = getConnection()) {
                 var entity = findByIdInternal(connection, id);
                 if (entity == null) {
-                    return StoreResult.notFound(format("TransferProcess %s not found", id));
+                    return StoreResult.notFound(format("TelemetryRecord %s not found", id));
                 }
 
-                leaseContext.withConnection(connection).acquireLease(entity.getId());
-                return StoreResult.success(entity);
-            } catch (IllegalStateException e) {
-                return StoreResult.alreadyLeased(format("TransferProcess %s is already leased", id));
+                return leaseContext.withConnection(connection).acquireLease(entity.getId()).map(it -> entity);
             } catch (SQLException e) {
                 throw new EdcPersistenceException(e);
             }

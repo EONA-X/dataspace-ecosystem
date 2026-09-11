@@ -74,6 +74,21 @@ allprojects {
             force("io.netty:netty-codec-http2:4.2.4.Final")
         }
     }
+
+    // EDC 0.15.0's verifiable-credentials module bumped com.networknt:json-schema-validator
+    // to 2.0.0 (breaking API change), which wins over mockserver-netty's 1.x requirement by
+    // default Gradle resolution. mockserver-core 5.15.0 is compiled against the 1.x API
+    // (SpecVersion$VersionFlag), so under 2.0.0 it throws NoClassDefFoundError while
+    // deserializing any expectation, crashing the connection mid-request. The client then
+    // just sees SocketConnectionException: "Channel handler removed before valid response
+    // has been received". Pin to a 1.x version (matching what worked pre-0.15.0) in test
+    // configurations only, since production code needs the 2.0.0 API for real credential
+    // validation.
+    configurations.matching { it.name.contains("test", ignoreCase = true) }.all {
+        resolutionStrategy {
+            force("com.networknt:json-schema-validator:1.5.8")
+        }
+    }
 }
 
 subprojects {

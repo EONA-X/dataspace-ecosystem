@@ -13,8 +13,9 @@ Flyway migrations for the control-plane store tables: `edc_transfer_process`,
 
 ## Content
 
-- `V20260804.2__edc_0_15_control_plane.sql` — EDC 0.14.0 → 0.15.0, ported from
-  `sql-migrations-v0.15/control-plane-migration.sql` (MR !69).
+- `V20260804.2__edc_0_15_control_plane.sql` — EDC 0.14.0 → 0.15.0, ported from the manual
+  migration script originally proposed in MR !69 (superseded by this Flyway migration, no
+  longer in the repo).
 
 ### Deviations from the !69 script
 

@@ -30,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.edc.http.client.testfixtures.HttpTestUtils.testHttpClient;
 import static org.eclipse.edc.util.io.Ports.getFreePort;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -96,7 +97,7 @@ class DefaultTelemetryServiceClientTest {
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());
             server.when(expectedRequest).respond(HttpResponse.response().withBody(typeManager.writeValueAsString(sasToken), MediaType.APPLICATION_JSON));
 
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var result = client.fetchCredential();
@@ -138,7 +139,7 @@ class DefaultTelemetryServiceClientTest {
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());
             server.when(expectedRequest).respond(HttpResponse.response().withStatusCode(400));
 
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var result = client.fetchCredential();
@@ -153,7 +154,7 @@ class DefaultTelemetryServiceClientTest {
             var didDocument = createDidDocument(service);
             when(didResolverRegistry.resolve(AUTHORITY_DID)).thenReturn(Result.success(didDocument));
 
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.failure("identity service failure"));
 
             var result = client.fetchCredential();
@@ -169,7 +170,7 @@ class DefaultTelemetryServiceClientTest {
             when(didResolverRegistry.resolve(AUTHORITY_DID)).thenReturn(Result.success(didDocument));
 
             var accessToken = createToken();
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());
@@ -191,7 +192,7 @@ class DefaultTelemetryServiceClientTest {
             var sasToken = createToken();
 
             ArgumentCaptor<org.eclipse.edc.spi.iam.TokenParameters> captor = ArgumentCaptor.forClass(org.eclipse.edc.spi.iam.TokenParameters.class);
-            when(identityService.obtainClientCredentials(captor.capture()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), captor.capture()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());
@@ -212,7 +213,7 @@ class DefaultTelemetryServiceClientTest {
             when(didResolverRegistry.resolve(AUTHORITY_DID)).thenReturn(Result.success(didDocument));
 
             var accessToken = createToken();
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());
@@ -230,7 +231,7 @@ class DefaultTelemetryServiceClientTest {
             when(didResolverRegistry.resolve(AUTHORITY_DID)).thenReturn(Result.success(didDocument));
 
             var accessToken = createToken();
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());
@@ -249,7 +250,7 @@ class DefaultTelemetryServiceClientTest {
             when(didResolverRegistry.resolve(AUTHORITY_DID)).thenReturn(Result.success(didDocument));
 
             var accessToken = createToken();
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());
@@ -269,7 +270,7 @@ class DefaultTelemetryServiceClientTest {
 
             var accessToken = createToken();
             var sasToken = createToken();
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             // Verify the exact URL path is used
@@ -295,7 +296,7 @@ class DefaultTelemetryServiceClientTest {
 
             var accessToken = createToken();
             var sasToken = createToken();
-            when(identityService.obtainClientCredentials(any()))
+            when(identityService.obtainClientCredentials(eq(OWN_DID), any()))
                     .thenReturn(Result.success(TokenRepresentation.Builder.newInstance().token(accessToken.getToken()).build()));
 
             var expectedRequest = HttpRequest.request().withHeader(AUTHORIZATION, accessToken.getToken());

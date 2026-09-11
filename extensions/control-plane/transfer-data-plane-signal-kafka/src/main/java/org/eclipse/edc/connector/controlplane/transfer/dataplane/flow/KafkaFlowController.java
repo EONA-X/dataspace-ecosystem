@@ -88,7 +88,7 @@ public class KafkaFlowController implements DataFlowController {
      * @return DataFlowResponse
      */
     @Override
-    public StatusResult<DataFlowResponse> provision(TransferProcess transferProcess, Policy policy) {
+    public StatusResult<DataFlowResponse> prepare(TransferProcess transferProcess, Policy policy) {
         return StatusResult.failure(FATAL_ERROR, "Provision operation is not supported for Kafka based assets as they transfer directly from the broker without a dedicated data plane");
     }
 }

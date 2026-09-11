@@ -19,6 +19,9 @@ import org.eclipse.edc.json.JacksonTypeManager;
 import org.eclipse.edc.junit.annotations.ComponentTest;
 import org.eclipse.edc.junit.testfixtures.TestUtils;
 import org.eclipse.edc.sql.QueryExecutor;
+import org.eclipse.edc.sql.lease.BaseSqlLeaseStatements;
+import org.eclipse.edc.sql.lease.SqlLeaseContextBuilderImpl;
+import org.eclipse.edc.sql.lease.spi.LeaseStatements;
 import org.eclipse.edc.sql.testfixtures.LeaseUtil;
 import org.eclipse.edc.sql.testfixtures.PostgresqlStoreSetupExtension;
 import org.eclipse.edc.telemetry.store.sql.schema.TelemetryBaseSqlDialectStatements;
@@ -33,7 +36,8 @@ import java.time.Duration;
 @ExtendWith(PostgresqlStoreSetupExtension.class)
 class PostgresTelemetryRecordStoreTest extends TelemetryStoreTestBase {
 
-    private final TelemetryBaseSqlDialectStatements sqlStatements = new PostgresTelemetryRecordStatements();
+    private final LeaseStatements leaseStatements = new BaseSqlLeaseStatements();
+    private final TelemetryBaseSqlDialectStatements sqlStatements = new PostgresTelemetryRecordStatements(leaseStatements, clock);
     private LeaseUtil leaseUtil;
     private SqlTelemetryRecordStore telemetryStore;
 
@@ -42,10 +46,11 @@ class PostgresTelemetryRecordStoreTest extends TelemetryStoreTestBase {
 
         var typeManager = new JacksonTypeManager();
 
-        leaseUtil = new LeaseUtil(extension.getTransactionContext(), extension::getConnection, sqlStatements, clock);
+        leaseUtil = new LeaseUtil(extension.getTransactionContext(), extension::getConnection, sqlStatements.getTelemetryRecordTable(), leaseStatements, clock);
+        var leaseContextBuilder = SqlLeaseContextBuilderImpl.with(extension.getTransactionContext(), CONNECTOR_NAME,
+                sqlStatements.getTelemetryRecordTable(), leaseStatements, clock, queryExecutor);
         telemetryStore = new SqlTelemetryRecordStore(extension.getDataSourceRegistry(), extension.getDatasourceName(),
-                extension.getTransactionContext(), typeManager.getMapper(), sqlStatements, queryExecutor, clock,
-                "test-connector");
+                extension.getTransactionContext(), typeManager.getMapper(), sqlStatements, queryExecutor, leaseContextBuilder);
 
         var schema = TestUtils.getResourceFileContentAsString("telemetry-record-schema.sql");
         extension.runQuery(schema);
@@ -54,6 +59,7 @@ class PostgresTelemetryRecordStoreTest extends TelemetryStoreTestBase {
     @AfterEach
     void tearDown(PostgresqlStoreSetupExtension setupExtension) {
         setupExtension.runQuery("DROP TABLE " + sqlStatements.getTelemetryRecordTable() + " CASCADE");
+        setupExtension.runQuery("DROP TABLE " + leaseStatements.getLeaseTableName() + " CASCADE");
     }
 
     @Override

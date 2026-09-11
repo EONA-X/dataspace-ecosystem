@@ -41,6 +41,14 @@ public class JwsTokenGenerationService implements TokenGenerationService {
         this.jwsSignerProvider = jwsSignerProvider;
     }
 
+    // participantContextId is unused: this runtime signs on behalf of a single, fixed
+    // participant (see EDC_UPGRADE_GUIDE_0.14.0_to_0.15.0.md, Category 2), so key resolution
+    // never needs to be scoped per-participant the way a multi-tenant runtime would.
+    @Override
+    public Result<TokenRepresentation> generate(String participantContextId, String privateKeyId, TokenDecorator... decorators) {
+        return generate(privateKeyId, decorators);
+    }
+
     @Override
     public Result<TokenRepresentation> generate(String privateKeyId, TokenDecorator... decorators) {
         Result<JWSSigner> signerResult = jwsSignerProvider.createJwsSigner(privateKeyId);

@@ -36,6 +36,7 @@ dependencies {
     testImplementation(libs.edc.ext.sql.edrindex)
     testImplementation(libs.edc.dp.store)
     testImplementation(libs.edc.dp.instance.store)
+    testImplementation(libs.edc.dp.accesstokendata.store)
     testImplementation(project(":extensions:common:store:sql:telemetry-store-sql"))
     testImplementation(libs.edc.ih.credentials.store)
     testImplementation(libs.edc.ih.did.store)
@@ -48,6 +49,7 @@ dependencies {
     testImplementation(libs.edc.issuersvc.attestation.definition.store)
     testImplementation(libs.edc.issuersvc.credential.definition.store)
     testImplementation(libs.edc.issuersvc.issuance.process.store)
+    testImplementation(libs.edc.sql.jti.store)
 }
 
 // The fixture that must match the DDL on the classpath is the one for the EDC version being built.

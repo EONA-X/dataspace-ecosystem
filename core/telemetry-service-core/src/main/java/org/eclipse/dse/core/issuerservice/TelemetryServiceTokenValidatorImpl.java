@@ -30,17 +30,20 @@ public class TelemetryServiceTokenValidatorImpl implements TelemetryServiceToken
     private final ParticipantAgentService agentService;
     private final DataspaceProfileContextRegistry dataspaceProfileContextRegistry;
     private final Monitor monitor;
+    private final String participantId;
     private final RemoteMessage remoteMessage = TelemetryRequestMessage.Builder.newInstance()
             .protocol(DATASPACE_PROTOCOL_HTTP)
             .build();
 
     public TelemetryServiceTokenValidatorImpl(IdentityService identityService, PolicyEngine policyEngine, Monitor monitor,
-                                              ParticipantAgentService agentService, DataspaceProfileContextRegistry dataspaceProfileContextRegistry) {
+                                              ParticipantAgentService agentService, DataspaceProfileContextRegistry dataspaceProfileContextRegistry,
+                                              String participantId) {
         this.identityService = identityService;
         this.monitor = monitor;
         this.policyEngine = policyEngine;
         this.agentService = agentService;
         this.dataspaceProfileContextRegistry = dataspaceProfileContextRegistry;
+        this.participantId = participantId;
     }
 
     @Override
@@ -53,7 +56,7 @@ public class TelemetryServiceTokenValidatorImpl implements TelemetryServiceToken
                 .policy(policy)
                 .scopes(policyContext.requestScopeBuilder().build().getScopes())
                 .build();
-        var tokenValidation = identityService.verifyJwtToken(tokenRepresentation, verificationContext);
+        var tokenValidation = identityService.verifyJwtToken(participantId, tokenRepresentation, verificationContext);
         if (tokenValidation.failed()) {
             monitor.debug(() -> "Unauthorized: %s".formatted(tokenValidation.getFailureDetail()));
             return ServiceResult.unauthorized("Unauthorized");

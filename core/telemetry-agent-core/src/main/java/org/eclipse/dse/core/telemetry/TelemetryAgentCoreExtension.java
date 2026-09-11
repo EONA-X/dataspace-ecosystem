@@ -155,7 +155,7 @@ public class TelemetryAgentCoreExtension implements ServiceExtension {
     @Provider
     public TelemetryServiceClient defaultTelemetryServiceClient(ServiceExtensionContext context) {
         return new TelemetryServiceClientImpl(httpClient, typeManager, didResolverRegistry,
-                authorityDid, identityService, policyEngine, telemetryPolicy, context.getParticipantId(), clock);
+                authorityDid, identityService, policyEngine, telemetryPolicy, context.getSetting("edc.participant.id", ServiceExtensionContext.ANONYMOUS_PARTICIPANT), clock);
     }
 
     @NotNull

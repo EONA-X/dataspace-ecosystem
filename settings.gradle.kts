@@ -18,12 +18,14 @@ include(":extensions:common:policies")
 include(":extensions:common:odrl-policy-did-validation")
 include(":extensions:common:metrics:custom-micrometer")
 include(":extensions:common:store:sql:telemetry-store-sql")
+include(":extensions:common:participant-context-single-vault-seed")
 include(":extensions:common:migration:flyway-core")
 include(":extensions:common:migration:migration-shared")
 
 include(":extensions:identity-hub:did-web-parser")
 include(":extensions:identity-hub:identity-hub-iatp")
 include(":extensions:identity-hub:superuser-seed")
+include(":extensions:identity-hub:participant-activation-healer")
 include(":extensions:identity-hub:identity-hub-migration")
 
 include(":extensions:data-plane:data-plane-public-api-v2")
@@ -49,6 +51,7 @@ include(":extensions:federated-catalog:filter")
 
 include(":extensions:telemetry-agent")
 include(":extensions:telemetry-agent:kafka-telemetry-record-publisher")
+include(":extensions:telemetry-agent:telemetry-agent-migration")
 include(":extensions:telemetry-test-utils")
 
 include(":extensions:telemetry-service")

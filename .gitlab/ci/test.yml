@@ -56,7 +56,7 @@ test:lint:
   variables:
     CACHE_POLICY: "pull"
   script:
-    - ./gradlew checkstyleMain checkstyleTest --build-cache
+    - ./gradlew checkstyleMain checkstyleTest checkstyleTestFixtures --build-cache
   allow_failure: true
 
 test:e2e:
