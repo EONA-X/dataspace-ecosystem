@@ -12,6 +12,12 @@ dependencies {
 
     runtimeOnly(libs.edc.identityhub.sql.bom)
     runtimeOnly(libs.edc.ext.vault.hashicorp)
+
+    // Schema migrations. The migration sets themselves (:extensions:common:migration:migration-shared
+    // and :extensions:identity-hub:identity-hub-migration) are added on the EDC 0.15.0 branch: they
+    // migrate the schema to the 0.15 shape, which a 0.14 runtime cannot use. Without them this
+    // extension registers nothing and is a no-op.
+    runtimeOnly(project(":extensions:common:migration:flyway-core"))
 }
 
 application {
