@@ -12,6 +12,10 @@ dependencies {
     runtimeOnly(project(":extensions:common:store:sql:telemetry-store-sql"))
 
     runtimeOnly(libs.bundles.coresql)
+    // libs.bundles.coresql only carries sql-lease (statements/model), not the -core module that
+    // @Provides SqlLeaseContextBuilderProvider -- control-plane/data-plane get it transitively via
+    // their -sql.bom, telemetry-agent has no such bom.
+    runtimeOnly(libs.edc.sql.lease.core)
     runtimeOnly(libs.edc.ext.vault.hashicorp)
 
     // Schema migrations. The telemetry-agent owns no table of its own -- its store is migrated by
