@@ -13,7 +13,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.edc.catalog.directory.ParticipantToTargetNodeResolver.DSP_MESSAGING_TYPE;
-import static org.eclipse.edc.protocol.dsp.http.spi.types.HttpMessageProtocol.DATASPACE_PROTOCOL_HTTP;
+import static org.eclipse.edc.protocol.dsp.spi.type.Dsp2025Constants.DATASPACE_PROTOCOL_HTTP_V_2025_1;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,7 +33,7 @@ class ParticipantToTargetNodeResolverTest {
 
         assertThat(result.succeeded()).isTrue();
         assertThat(result.getContent()).usingRecursiveComparison()
-                .isEqualTo(new TargetNode(holder.getParticipantContextId(), holder.getDid(), service.getServiceEndpoint(), List.of(DATASPACE_PROTOCOL_HTTP)));
+                .isEqualTo(new TargetNode(holder.getParticipantContextId(), holder.getDid(), service.getServiceEndpoint(), List.of(DATASPACE_PROTOCOL_HTTP_V_2025_1)));
     }
 
     @Test

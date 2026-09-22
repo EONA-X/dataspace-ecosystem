@@ -9,7 +9,7 @@ import org.eclipse.edc.spi.result.Result;
 import java.util.List;
 import java.util.function.Function;
 
-import static org.eclipse.edc.protocol.dsp.http.spi.types.HttpMessageProtocol.DATASPACE_PROTOCOL_HTTP;
+import static org.eclipse.edc.protocol.dsp.spi.type.Dsp2025Constants.DATASPACE_PROTOCOL_HTTP_V_2025_1;
 
 public class ParticipantToTargetNodeResolver implements Function<Holder, Result<TargetNode>> {
 
@@ -24,7 +24,7 @@ public class ParticipantToTargetNodeResolver implements Function<Holder, Result<
     @Override
     public Result<TargetNode> apply(Holder holder) {
         return targetUrl(holder)
-                .map(url -> new TargetNode(holder.getParticipantContextId(), holder.getDid(), url, List.of(DATASPACE_PROTOCOL_HTTP)));
+                .map(url -> new TargetNode(holder.getParticipantContextId(), holder.getDid(), url, List.of(DATASPACE_PROTOCOL_HTTP_V_2025_1)));
     }
 
     private Result<String> targetUrl(Holder holder) {
