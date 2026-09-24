@@ -5,8 +5,8 @@
 **Important Notice**: This repository is currently in development and open for read access to gather community feedback. While we welcome your input through issues and discussions, we are **not accepting external pull requests at this time** as we establish our contribution guidelines and processes. 
 
 We encourage you to:
-- 🐛 **Report bugs** via [issues](https://github.com/AmadeusITGroup/Dataspace_Ecosystem/issues)
-- 💡 **Share ideas** through [discussions](https://github.com/AmadeusITGroup/Dataspace_Ecosystem/discussions)
+- 🐛 **Report bugs** via [issues](https://github.com/EONA-X/dataspace-ecosystem/issues)
+- 💡 **Share ideas** through [issues] too(https://github.com/EONA-X/dataspace-ecosystem/issues)
 - 📝 **Provide feedback** on existing features and documentation
 
 Once our contribution process is finalized, we will update this guide to welcome pull requests.
@@ -17,9 +17,9 @@ When external contributions are enabled, we will welcome contributions to the pr
 these steps:
 
 1. Check if there is already an issue for your idea in
-   the [issue tracker](https://github.com/AmadeusITGroup/Dataspace_Ecosystem/issues). If there is already an issue, feel
+   the [issue tracker](https://github.com/EONA-X/dataspace-ecosystem/issues). If there is already an issue, feel
    free to comment on it with your thoughts or suggestions. If not, open
-   a [discussion](https://github.com/AmadeusITGroup/Dataspace_Ecosystem/discussions) to propose your idea and wait
+   a [new issue](https://github.com/EONA-X/dataspace-ecosystem/issues/new) to propose your idea and wait
    until this discussion is converted into an issue.
 2. Fork the repository and clone it to your local machine.
 3. Create a new branch for your changes. Use a descriptive name for the branch that reflects the purpose of your
