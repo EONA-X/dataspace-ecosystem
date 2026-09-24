@@ -27,6 +27,5 @@ dependencies {
     testImplementation("org.mockito:mockito-junit-jupiter:5.10.0")
     testImplementation("org.testcontainers:testcontainers:1.21.4")
     testImplementation("org.testcontainers:junit-jupiter:1.21.4")
-    testImplementation("org.testcontainers:minio:1.21.4")
     testImplementation(libs.assertj)
 }

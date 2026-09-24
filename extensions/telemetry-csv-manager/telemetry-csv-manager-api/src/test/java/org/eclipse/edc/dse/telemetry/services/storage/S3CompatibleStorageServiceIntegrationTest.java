@@ -4,9 +4,12 @@ import org.eclipse.edc.spi.monitor.Monitor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.MinIOContainer;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
+import org.testcontainers.utility.MountableFile;
 
 import java.io.InputStream;
 import java.net.URI;
@@ -25,15 +28,26 @@ import static org.mockito.Mockito.mock;
 @Testcontainers
 class S3CompatibleStorageServiceIntegrationTest {
 
+    private static final int S3_API_PORT = 3900;
     private static final String BUCKET_NAME = "test-bucket";
-    private static final String ACCESS_KEY = "minioadmin";
-    private static final String SECRET_KEY = "minioadmin";
+    private static final String ACCESS_KEY = "garagetest";
+    private static final String SECRET_KEY = "garagetestgaragetest123";
     private static final String REGION = "us-east-1";
 
+    // minio/minio was pulled from Docker Hub (repository now 404s there, see #605), and MinIO's
+    // licensing/distribution direction pushed the move off it entirely. GarageHQ is our own mirror
+    // of dxflrs/garage on Harbor. Single-node bootstrap (layout + default key/bucket) is handled by
+    // the --single-node/--default-bucket server flags (Garage >= 2.3.0), config in garage-test.toml.
     @Container
-    private static final MinIOContainer MINIO = new MinIOContainer("minio/minio:RELEASE.2024-11-07T00-52-20Z")
-            .withUserName(ACCESS_KEY)
-            .withPassword(SECRET_KEY);
+    private static final GenericContainer<?> GARAGE = new GenericContainer<>(
+            DockerImageName.parse("n164hw2l.gra7.container-registry.ovh.net/tooling/garage:v2.4.1"))
+            .withExposedPorts(S3_API_PORT)
+            .withCopyFileToContainer(MountableFile.forClasspathResource("garage-test.toml"), "/etc/garage.toml")
+            .withEnv("GARAGE_DEFAULT_ACCESS_KEY", ACCESS_KEY)
+            .withEnv("GARAGE_DEFAULT_SECRET_KEY", SECRET_KEY)
+            .withEnv("GARAGE_DEFAULT_BUCKET", BUCKET_NAME)
+            .withCommand("/garage", "server", "--single-node", "--default-bucket")
+            .waitingFor(Wait.forLogMessage(".*S3 API server listening.*\\n", 1));
 
     private S3CompatibleStorageService storageService;
     private Monitor monitor;
@@ -43,7 +57,7 @@ class S3CompatibleStorageServiceIntegrationTest {
         monitor = mock(Monitor.class);
         storageService = new S3CompatibleStorageService(
                 monitor,
-                MINIO.getS3URL(),
+                s3Url(),
                 ACCESS_KEY,
                 SECRET_KEY,
                 BUCKET_NAME,
@@ -141,7 +155,7 @@ class S3CompatibleStorageServiceIntegrationTest {
 
         try (S3CompatibleStorageService serviceWithNewBucket = new S3CompatibleStorageService(
                 monitor,
-                MINIO.getS3URL(),
+                s3Url(),
                 ACCESS_KEY,
                 SECRET_KEY,
                 newBucket,
@@ -164,5 +178,9 @@ class S3CompatibleStorageServiceIntegrationTest {
 
     private String uniquePath(String baseName) {
         return "reports/" + baseName + "-" + UUID.randomUUID() + ".csv";
+    }
+
+    private static String s3Url() {
+        return "http://" + GARAGE.getHost() + ":" + GARAGE.getMappedPort(S3_API_PORT);
     }
 }
