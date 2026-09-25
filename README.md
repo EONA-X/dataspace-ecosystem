@@ -126,7 +126,38 @@ We can select one of the tasks available in the output of this command and simpl
 
 In this example, the generated OpenApi spec will be placed in the folder ```extensions/agreements/retirement-evaluation-api/build/docs/openapi```
 
-## 8. Contributing
+## 8. Container Images
+
+Published to the GitHub Container Registry by
+[`.github/workflows/publish-images.yml`](.github/workflows/publish-images.yml), so a
+self-hosting participant can pull them without needing access to a private registry.
+
+```
+ghcr.io/eona-x/control-plane-postgresql-hashicorpvault
+ghcr.io/eona-x/data-plane-postgresql-hashicorpvault
+ghcr.io/eona-x/identity-hub-postgresql-hashicorpvault
+```
+
+Those three are what a participant connector runs. The authority-side images
+(federated catalog, catalog filter, issuer service) are built on demand
+rather than on every change — run the workflow manually with `scope: authority` or
+`scope: all`.
+
+Tags: `latest` tracks the default branch, `<version>` is published for a release tag,
+and every build is also tagged `sha-<short-sha>`. Images are built for `linux/amd64`
+and `linux/arm64`, with SBOM and build provenance attached.
+
+```
+docker pull ghcr.io/eona-x/control-plane-postgresql-hashicorpvault:latest
+```
+
+Building the same images locally is unchanged:
+
+```
+./gradlew :launchers:control-plane:control-plane-postgresql-hashicorpvault:dockerize
+```
+
+## 9. Contributing
 
 We welcome community feedback and engagement! Please read our [Contributing Guide](CONTRIBUTING.md) to understand our current contribution process and policies.
 
@@ -136,7 +167,7 @@ Also ensure your contributions align with our [Code of Conduct](CODE_OF_CONDUCT.
 
 **Important**: Before using this code, please review our [Disclaimer](DISCLAIMER.md) regarding security validation and production deployment.
 
-## 9. License
+## 10. License
 
 Distributed under the Apache 2.0 License.
 See [LICENSE](LICENSE) for more information.

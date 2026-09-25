@@ -1,0 +1,199 @@
+# Publish the dataspace-ecosystem container images to GitHub Container Registry.
+#
+# This file lives in GitLab (the source of truth) and reaches GitHub through the
+# `post:github-sync` job, which rsyncs the tree to Eona-X/dataspace-ecosystem.
+# `.rsync-exclude` does not exclude `.github/`, so it syncs as-is — but the
+# workflow only ever RUNS on GitHub, never on GitLab.
+#
+# Why this exists: the images are currently published only to a private registry,
+# which means an external organisation cannot run a connector without us opening
+# access to it first. Publishing to ghcr.io removes that step for the images a
+# self-hosting participant actually needs.
+#
+# One-time manual step after the first successful run: GHCR packages are created
+# private. Open each package's settings on GitHub and set visibility to Public.
+# There is no supported API to do that at creation time.
+
+name: Publish container images
+
+on:
+  # A sync from GitLab lands as a push to main and refreshes `latest` for the
+  # participant images only — the set a self-hoster needs. The authority images
+  # are built on demand, to keep a routine sync from rebuilding ten images.
+  push:
+    branches:
+      - main
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: "Which images to publish"
+        type: choice
+        default: participant
+        options:
+          - participant   # what a self-hosting participant needs
+          - authority     # what the dataspace operator runs
+          - all
+      tag:
+        description: "Image tag (default: short SHA, plus 'latest' on the default branch)"
+        type: string
+        required: false
+      platforms:
+        description: "Target platforms"
+        type: choice
+        default: "linux/amd64,linux/arm64"
+        options:
+          - "linux/amd64,linux/arm64"
+          - "linux/amd64"
+
+# GITHUB_TOKEN is enough for ghcr.io in the repo's own namespace — no PAT needed.
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-images-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # The matrix is built here rather than inlined so that `scope` can select it and
+  # so the module list has exactly one definition.
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+      namespace: ${{ steps.set.outputs.namespace }}
+    steps:
+      - id: set
+        shell: bash
+        env:
+          # a tag publishes everything; a routine sync to main publishes only
+          # what a self-hosting participant needs
+          SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.scope || (startsWith(github.ref, 'refs/tags/') && 'all' || 'participant') }}
+        run: |
+          set -euo pipefail
+
+          # gradlePath|imageName|role
+          ALL='
+          :launchers:control-plane:control-plane-postgresql-hashicorpvault|control-plane-postgresql-hashicorpvault|participant
+          :launchers:data-plane:data-plane-postgresql-hashicorpvault|data-plane-postgresql-hashicorpvault|participant
+          :launchers:identity-hub:identity-hub-postgresql-hashicorpvault|identity-hub-postgresql-hashicorpvault|participant
+          :launchers:federated-catalog:federated-catalog-postgresql-hashicorpvault|federated-catalog-postgresql-hashicorpvault|authority
+          :launchers:federated-catalog-filter:federated-catalog-filter-postgresql-hashicorpvault|federated-catalog-filter-postgresql-hashicorpvault|authority
+          :launchers:issuer-service:issuer-service-postgresql-hashicorpvault|issuer-service-postgresql-hashicorpvault|authority
+          '
+
+          # ghcr.io namespaces must be lowercase; the GitHub org is "Eona-X".
+          # "dataspace" groups these packages apart from other Eona-X repos' images.
+          NAMESPACE="$(echo "${GITHUB_REPOSITORY%%/*}/dataspace" | tr '[:upper:]' '[:lower:]')"
+          echo "namespace=${NAMESPACE}" >> "$GITHUB_OUTPUT"
+
+          ENTRIES=""
+          while IFS='|' read -r gpath image role; do
+            [ -n "${gpath:-}" ] || continue
+            gpath="$(echo "$gpath" | tr -d '[:space:]')"
+            image="$(echo "$image" | tr -d '[:space:]')"
+            role="$(echo "$role" | tr -d '[:space:]')"
+            if [ "$SCOPE" != "all" ] && [ "$SCOPE" != "$role" ]; then continue; fi
+            # context is the gradle path turned back into a directory
+            dir="$(echo "${gpath#:}" | tr ':' '/')"
+            ENTRIES="${ENTRIES}{\"gradlePath\":\"${gpath}\",\"image\":\"${image}\",\"dir\":\"${dir}\",\"role\":\"${role}\"},"
+          done <<< "$ALL"
+
+          MATRIX="{\"include\":[${ENTRIES%,}]}"
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+          echo "Publishing scope '${SCOPE}':"
+          echo "${MATRIX}" | tr ',' '\n' | grep -o '"image":"[^"]*"' || true
+
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Matches the JRE the images ship (eclipse-temurin:21-jre-alpine).
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+      # `dockerize` would build the image too, but we only want the artefacts it
+      # needs so that buildx can do the build — that buys multi-arch, layer cache
+      # and provenance, none of which the gradle docker plugin provides.
+      - name: Build shadow jar and fetch the OpenTelemetry agent
+        run: ./gradlew ${{ matrix.gradlePath }}:shadowJar ${{ matrix.gradlePath }}:downloadOtel --no-daemon
+
+      - name: Confirm the build artefacts the Dockerfile expects
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "${{ matrix.dir }}"
+          test -f "build/libs/${{ matrix.image }}.jar" \
+            || { echo "::error::missing build/libs/${{ matrix.image }}.jar"; ls -R build/libs || true; exit 1; }
+          test -f "build/opentelemetry-javaagent.jar" \
+            || { echo "::error::missing build/opentelemetry-javaagent.jar"; ls -R build || true; exit 1; }
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ needs.prepare.outputs.namespace }}/${{ matrix.image }}
+          # `org.opencontainers.image.source` is what links the package to this
+          # repository on GitHub, so the package page shows the source and licence.
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.description=EONA-X dataspace-ecosystem ${{ matrix.image }} (${{ matrix.role }} component)
+            org.opencontainers.image.licenses=Apache-2.0
+          tags: |
+            type=ref,event=tag
+            type=sha,format=short
+            type=raw,value=${{ inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' }}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.dir }}
+          file: ${{ matrix.dir }}/Dockerfile
+          platforms: ${{ github.event_name == 'workflow_dispatch' && inputs.platforms || 'linux/amd64,linux/arm64' }}
+          push: true
+          provenance: mode=max
+          sbom: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Paths are relative to the build context, matching what the gradle
+          # `dockerize` task passes, so the Dockerfile needs no change.
+          build-args: |
+            JAR=build/libs/${{ matrix.image }}.jar
+            OTEL_JAR=build/opentelemetry-javaagent.jar
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
+
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "### ${{ matrix.image }}"
+            echo
+            echo '```'
+            echo "${{ steps.meta.outputs.tags }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
