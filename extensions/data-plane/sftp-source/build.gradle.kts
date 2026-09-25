@@ -8,6 +8,7 @@ dependencies {
     implementation(libs.mina.sshd.core)
     implementation(libs.mina.sshd.sftp)
 
+    testImplementation(libs.edc.core.junit)
     testImplementation(libs.testcontainers.core)
     testImplementation(libs.testcontainers.junit.jupiter)
 }
