@@ -31,11 +31,6 @@ abstract class AbstractAuthority extends AbstractEntity {
     public static final String DOMAIN_TRAVEL = "travel";
 
     @Override
-    protected String did() {
-        return "did:web:" + name() + "-identityhub%3A8383:api:did";
-    }
-
-    @Override
     protected String vaultUrl() {
         return "http://%s/%s/vault".formatted(CLUSTER_HOSTNAME, name());
     }
@@ -104,14 +99,12 @@ abstract class AbstractAuthority extends AbstractEntity {
                 )
         );
 
-        given()
-                .baseUri(issuerServiceAdminUrl())
-                .body(dto)
-                .contentType(JSON)
-                .when()
-                .post("/v1alpha/participants/%s/attestations".formatted(toBase64(did())))
-                .then()
-                .statusCode(isStatus2xx());
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> postOrSkip(
+                given()
+                        .baseUri(issuerServiceAdminUrl())
+                        .body(dto)
+                        .contentType(JSON),
+                "/v1alpha/participants/%s/attestations".formatted(toBase64(did()))));
 
         return dto.id();
     }
@@ -126,14 +119,12 @@ abstract class AbstractAuthority extends AbstractEntity {
                 )
         );
 
-        given()
-                .baseUri(issuerServiceAdminUrl())
-                .body(dto)
-                .contentType(JSON)
-                .when()
-                .post("/v1alpha/participants/%s/attestations".formatted(toBase64(did())))
-                .then()
-                .statusCode(isStatus2xx());
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> postOrSkip(
+                given()
+                        .baseUri(issuerServiceAdminUrl())
+                        .body(dto)
+                        .contentType(JSON),
+                "/v1alpha/participants/%s/attestations".formatted(toBase64(did()))));
 
         return dto.id();
     }
@@ -151,15 +142,12 @@ abstract class AbstractAuthority extends AbstractEntity {
                 .mapping(new MappingDefinition("membership_start_date", "credentialSubject.membership.since", true))
                 .build();
 
-        given()
-                .baseUri(issuerServiceAdminUrl())
-                .body(dto)
-                .contentType(JSON)
-                .when()
-                .post("/v1alpha/participants/%s/credentialdefinitions".formatted(toBase64(did())))
-                .then()
-                .statusCode(isStatus2xx());
-
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> postOrSkip(
+                given()
+                        .baseUri(issuerServiceAdminUrl())
+                        .body(dto)
+                        .contentType(JSON),
+                "/v1alpha/participants/%s/credentialdefinitions".formatted(toBase64(did()))));
     }
 
     private void createDomainCredentialDefinition(String attestationId) {
@@ -173,41 +161,33 @@ abstract class AbstractAuthority extends AbstractEntity {
                 .mapping(new MappingDefinition("domain", "credentialSubject.domain", true))
                 .build();
 
-        given()
-                .baseUri(issuerServiceAdminUrl())
-                .body(dto)
-                .contentType(JSON)
-                .when()
-                .post("/v1alpha/participants/%s/credentialdefinitions".formatted(toBase64(did())))
-                .then()
-                .statusCode(isStatus2xx());
-
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> postOrSkip(
+                given()
+                        .baseUri(issuerServiceAdminUrl())
+                        .body(dto)
+                        .contentType(JSON),
+                "/v1alpha/participants/%s/credentialdefinitions".formatted(toBase64(did()))));
     }
 
     private void createHolder(String name, String did) {
         var dto = new HolderDto(did, did, name, Map.of());
 
-        given()
-                .baseUri(issuerServiceAdminUrl())
-                .body(dto)
-                .contentType(JSON)
-                .when()
-                .post("/v1alpha/participants/%s/holders".formatted(toBase64(did())))
-                .then()
-                .statusCode(isStatus2xx());
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> postOrSkip(
+                given()
+                        .baseUri(issuerServiceAdminUrl())
+                        .body(dto)
+                        .contentType(JSON),
+                "/v1alpha/participants/%s/holders".formatted(toBase64(did()))));
     }
 
     private void createParticipantMembershipAttestation(String name, String did) {
         var dto = new MembershipAttestationDto(did, name, did, "FullMember", List.of());
-        given()
-                .baseUri(issuerServiceAdminUrl())
-                .body(dto)
-                .contentType(JSON)
-                .when()
-                .post("/v1alpha/participants/%s/attestation-membership".formatted(toBase64(did())))
-                .then()
-                .statusCode(isStatus2xx());
-
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> postOrSkip(
+                given()
+                        .baseUri(issuerServiceAdminUrl())
+                        .body(dto)
+                        .contentType(JSON),
+                "/v1alpha/participants/%s/attestation-membership".formatted(toBase64(did()))));
     }
 
     private void createParticipantDomainAttestation(String did) {
@@ -216,14 +196,12 @@ abstract class AbstractAuthority extends AbstractEntity {
                 did,
                 DOMAIN_ROUTE
         );
-        given()
-                .baseUri(issuerServiceAdminUrl())
-                .body(dto)
-                .contentType(JSON)
-                .when()
-                .post("/v1alpha/participants/%s/attestation-domain".formatted(toBase64(did())))
-                .then()
-                .statusCode(isStatus2xx());
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> postOrSkip(
+                given()
+                        .baseUri(issuerServiceAdminUrl())
+                        .body(dto)
+                        .contentType(JSON),
+                "/v1alpha/participants/%s/attestation-domain".formatted(toBase64(did()))));
     }
 
     private void createUnAuthorizedParticipantDomainAttestation(String did) {

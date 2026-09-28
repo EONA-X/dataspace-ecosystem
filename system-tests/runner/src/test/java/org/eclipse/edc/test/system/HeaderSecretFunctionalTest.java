@@ -2,6 +2,7 @@ package org.eclipse.edc.test.system;
 
 import org.eclipse.edc.connector.dataplane.spi.response.TransferErrorResponse;
 import org.eclipse.edc.junit.annotations.EndToEndTest;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +37,11 @@ class HeaderSecretFunctionalTest extends AbstractEndToEndTests {
 
     @BeforeAll
     static void setup() {
+        // Independent JUnit class from LocalEndToEndTests, own @BeforeAll, same provider tables —
+        // needs its own replay-safety check rather than relying on the other class having run
+        // (and cleaned up) first. See AbstractEndToEndTests.resetParticipant().
+        resetParticipant("provider");
+
         PROVIDER.createSecret(SECRET_A, VALUE_A);
         PROVIDER.createSecret(SECRET_B, VALUE_B);
 
@@ -76,6 +82,14 @@ class HeaderSecretFunctionalTest extends AbstractEndToEndTests {
                 "header-secret:X-Ticket-385-A", SECRET_A,
                 "header-secret:X-Ticket-385-Missing", "header-secret-385-alias-does-not-exist"
         ));
+    }
+
+    @AfterAll
+    static void tearDown() {
+        // Mirrors LocalEndToEndTests.afterAll(): leaves 'provider' the way this class's own
+        // resetParticipant() expects to find it, so replay stays the fast no-op path instead of
+        // hitting the forced-reset path on every run.
+        DatabaseCleaner.truncateTables("provider", EDC_TABLES);
     }
 
     @Test

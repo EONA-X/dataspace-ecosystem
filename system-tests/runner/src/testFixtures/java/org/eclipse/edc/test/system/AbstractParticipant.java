@@ -27,15 +27,9 @@ import static org.eclipse.edc.spi.constants.CoreConstants.EDC_NAMESPACE;
 import static org.eclipse.edc.spi.core.CoreConstants.DSE_POLICY_NS;
 import static org.eclipse.edc.spi.core.CoreConstants.DSE_POLICY_PREFIX;
 import static org.eclipse.edc.test.system.ParticipantConstants.CLUSTER_HOSTNAME;
-import static org.eclipse.edc.test.system.ParticipantConstants.CONTROL_PLANE_DSP_PORT;
-import static org.eclipse.edc.test.system.ParticipantConstants.IDENTITY_HUB_DID_PORT;
+import static org.eclipse.edc.test.system.TestConstants.DEFAULT_TIMEOUT;
 
 abstract class AbstractParticipant extends AbstractEntity {
-
-    @Override
-    protected String did() {
-        return "did:web:" + name() + "-identityhub%3A" + IDENTITY_HUB_DID_PORT + ":api:did";
-    }
 
     @Override
     protected String identityHubIdentityUrl() {
@@ -47,8 +41,14 @@ abstract class AbstractParticipant extends AbstractEntity {
         return "http://%s/%s/vault".formatted(CLUSTER_HOSTNAME, name());
     }
 
+    /**
+     * Like did()/identityHubIdentityUrl()/vaultUrl(): the in-cluster short hostname
+     * ({@code <name>-controlplane}) only resolves within a single-namespace cluster. With one namespace per participant, a participant needing to reach
+     * ANOTHER participant's control-plane DSP (contract negotiation, transfer) must go through
+     * the external ingress, exactly like the other cross-participant endpoints.
+     */
     protected String controlPlaneProtocolUrl() {
-        return "http://%s-controlplane:%s/api/dsp".formatted(name(), CONTROL_PLANE_DSP_PORT);
+        return "http://%s/%s/cp/dsp".formatted(CLUSTER_HOSTNAME, name());
     }
 
     protected String controlPlaneManagementUrl() {
@@ -64,22 +64,35 @@ abstract class AbstractParticipant extends AbstractEntity {
     }
 
     protected void createEntry(String assetId, String name, String description, Map<String, Object> dataAddressProps, JsonObject... additionalConstraints) {
-        var client = participantClient();
-        Map<String, Object> assetProps = Map.of(
-                "name", name,
-                "contenttype", "application/json",
-                "version", "1.0",
-                "description", description
-        );
-        var asset = client.createAsset(assetId, assetProps, dataAddressProps);
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () -> {
+            var client = participantClient();
+            Map<String, Object> assetProps = Map.of(
+                    "name", name,
+                    "contenttype", "application/json",
+                    "version", "1.0",
+                    "description", description
+            );
+            createAssetOrSkip(assetId, assetProps, dataAddressProps);
 
-        var constraints = new ArrayList<JsonObject>();
-        constraints.add(atomicConstraint("%s:%s".formatted(DSE_POLICY_PREFIX, MEMBERSHIP_CONSTRAINT), "odrl:eq", "active"));
-        constraints.addAll(Arrays.asList(additionalConstraints));
+            var constraints = new ArrayList<JsonObject>();
+            constraints.add(atomicConstraint("%s:%s".formatted(DSE_POLICY_PREFIX, MEMBERSHIP_CONSTRAINT), "odrl:eq", "active"));
+            constraints.addAll(Arrays.asList(additionalConstraints));
 
-        var permissions = constraints.stream().map(this::createPermission).toList();
-        var policy = createPolicyDefinition(PolicyFixtures.policy(permissions));
-        client.createContractDefinition(asset, UUID.randomUUID().toString(), policy, policy);
+            var permissions = constraints.stream().map(this::createPermission).toList();
+            var policy = createPolicyDefinition(PolicyFixtures.policy(permissions));
+            client.createContractDefinition(assetId, UUID.randomUUID().toString(), policy, policy);
+        });
+    }
+
+    private void createAssetOrSkip(String assetId, Map<String, Object> properties, Map<String, Object> dataAddressProperties) {
+        var requestBody = createObjectBuilder()
+                .add(CONTEXT, createObjectBuilder()
+                        .add(VOCAB, EDC_NAMESPACE))
+                .add(ID, assetId)
+                .add("properties", createObjectBuilder(properties))
+                .add("dataAddress", createObjectBuilder(dataAddressProperties))
+                .build();
+        postOrSkip(participantClient().baseManagementRequest().contentType(JSON).body(requestBody), "/v3/assets");
     }
 
     public String createPolicyDefinition(JsonObject policy) {
@@ -112,14 +125,8 @@ abstract class AbstractParticipant extends AbstractEntity {
 
         var requestBody = requestBodyBuilder.build();
 
-        participantClient().baseManagementRequest()
-                .contentType(JSON)
-                .body(requestBody)
-                .when()
-                .post("/v3/secrets")
-                .then()
-                .log().ifError()
-                .statusCode(200);
+        withRetry(PROVISIONING_MAX_ATTEMPTS, () ->
+                postOrSkip(participantClient().baseManagementRequest().contentType(JSON).body(requestBody), "/v3/secrets"));
     }
 
     public <T> T queryData(String contractId, Map<String, String> queryParams, int statusCode, Class<T> clazz) {
@@ -142,6 +149,7 @@ abstract class AbstractParticipant extends AbstractEntity {
                 .dataPlaneData(dataPlaneDataUrl())
                 .controlPlaneManagement(controlPlaneManagementUrl())
                 .controlPlaneProtocol(controlPlaneProtocolUrl())
+                .timeout(DEFAULT_TIMEOUT)
                 .build();
     }
 
