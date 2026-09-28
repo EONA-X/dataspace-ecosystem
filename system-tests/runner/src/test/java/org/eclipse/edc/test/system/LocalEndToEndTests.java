@@ -707,5 +707,15 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
         void testRetrieveNonExistentReportFromExistentParticipantFails() {
             given().baseUri(AUTHORITY.csvManagerUrl()).params(Map.of("month", 2, "year", 2024)).contentType(JSON).header("Authorization", "Bearer " + dummyJwt).get().then().statusCode(404);
         }
+
+        @Test
+        void testRetrieveReportWithNoTokenFails() {
+            String ctId = UUID.randomUUID().toString();
+            int month = 1;
+            int year = 2025;
+            given().baseUri(AUTHORITY.telemetryUrl()).contentType(JSON).body(buildTelemetryJson("5", ctId, CONSUMER.did(), 200, 20, null, Timestamp.valueOf(LocalDateTime.of(year, month, 20, 20, 18)))).post().then().statusCode(201);
+            given().baseUri(AUTHORITY.csvManagerUrl()).body(buildGenerationJson(CONSUMER.name(), month, year)).contentType(JSON).post().then().statusCode(201);
+            given().baseUri(AUTHORITY.csvManagerUrl()).params(Map.of("month", month, "year", year)).contentType(JSON).get().then().statusCode(401);
+        }
     }
 }
