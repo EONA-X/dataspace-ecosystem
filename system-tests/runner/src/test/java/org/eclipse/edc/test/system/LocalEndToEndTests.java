@@ -35,9 +35,11 @@ import java.io.InputStreamReader;
 import java.security.Key;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -89,6 +91,7 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
     public static String dummyJwt;
     public static String dummyJwtWithMultipleRoles;
     public static String dummyJwtNonExistentParticipant;
+    public static String dummyJwtExpired;
     private static final String KAFKA_BOOTSTRAP_SERVERS = "localhost:9092";
     private static final String TELEMETRY_TOPIC = "telemetry";
     private static final String VAULT_TOKEN = "root";
@@ -166,6 +169,11 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
 
         dummyJwtNonExistentParticipant = Jwts.builder().header().add("alg", "HS256").add("typ", "JWT").and()
                 .claims(Map.of("roles", List.of("Participant.doesnotexist")))
+                .signWith(key).compact();
+
+        dummyJwtExpired = Jwts.builder().header().add("alg", "HS256").add("typ", "JWT").and()
+                .claims(Map.of("roles", List.of("Participant.consumer")))
+                .expiration(Date.from(Instant.parse("2020-01-01T00:00:00Z")))
                 .signWith(key).compact();
     }
 
@@ -701,6 +709,16 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
             given().baseUri(AUTHORITY.telemetryUrl()).contentType(JSON).body(buildTelemetryJson("4", ctId, CONSUMER.did(), 200, 20, null, Timestamp.valueOf(LocalDateTime.of(year, month, 20, 20, 18)))).post().then().statusCode(201);
             given().baseUri(AUTHORITY.csvManagerUrl()).body(buildGenerationJson(CONSUMER.name(), month, year)).contentType(JSON).post().then().statusCode(201);
             given().baseUri(AUTHORITY.csvManagerUrl()).params(Map.of("month", month, "year", year)).contentType(JSON).header("Authorization", "Bearer " + dummyJwtNonExistentParticipant).get().then().statusCode(403);
+        }
+
+        @Test
+        void testRetrieveReportWithExpiredTokenFails() {
+            String ctId = UUID.randomUUID().toString();
+            int month = 1;
+            int year = 2025;
+            given().baseUri(AUTHORITY.telemetryUrl()).contentType(JSON).body(buildTelemetryJson("5", ctId, CONSUMER.did(), 200, 20, null, Timestamp.valueOf(LocalDateTime.of(year, month, 20, 20, 18)))).post().then().statusCode(201);
+            given().baseUri(AUTHORITY.csvManagerUrl()).body(buildGenerationJson(CONSUMER.name(), month, year)).contentType(JSON).post().then().statusCode(201);
+            given().baseUri(AUTHORITY.csvManagerUrl()).params(Map.of("month", month, "year", year)).contentType(JSON).header("Authorization", "Bearer " + dummyJwtExpired).get().then().statusCode(401);
         }
 
         @Test

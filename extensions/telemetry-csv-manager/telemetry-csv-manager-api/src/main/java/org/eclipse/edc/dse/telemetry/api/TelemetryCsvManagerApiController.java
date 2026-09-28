@@ -19,6 +19,7 @@ import org.eclipse.edc.dse.telemetry.services.report.ReportGeneratorSchedulerExt
 import org.eclipse.edc.spi.monitor.Monitor;
 
 import java.io.InputStream;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
@@ -65,7 +66,14 @@ public class TelemetryCsvManagerApiController implements TelemetryCsvManagerApi 
         }
 
         try {
-            List<String> roles = extractRolesFromJwt(jwtParts);
+            JsonNode jwtPayload = decodeJwtPayload(jwtParts);
+
+            if (isJwtExpired(jwtPayload)) {
+                this.monitor.warning("JWT token expired");
+                return Response.status(Response.Status.UNAUTHORIZED).entity("JWT token expired").build();
+            }
+
+            List<String> roles = extractRolesFromJwt(jwtPayload);
 
             if (roles.isEmpty()) {
                 this.monitor.warning("Roles array in JWT is empty");
@@ -114,9 +122,20 @@ public class TelemetryCsvManagerApiController implements TelemetryCsvManagerApi 
         }
     }
 
-    private static List<String> extractRolesFromJwt(String[] jwtParts) throws JsonProcessingException {
+    private static JsonNode decodeJwtPayload(String[] jwtParts) throws JsonProcessingException {
         String decodedJwtPayload = new String(DECODER.decode(jwtParts[1]));
-        JsonNode root = MAPPER.readTree(decodedJwtPayload);
+        return MAPPER.readTree(decodedJwtPayload);
+    }
+
+    private static boolean isJwtExpired(JsonNode root) {
+        JsonNode expNode = root.get("exp");
+        if (expNode == null || !expNode.isNumber()) {
+            return false;
+        }
+        return expNode.asLong() < Instant.now().getEpochSecond();
+    }
+
+    private static List<String> extractRolesFromJwt(JsonNode root) {
         JsonNode rolesNode = root.get("roles");
         if (rolesNode == null || !rolesNode.isArray()) {
             throw new IllegalArgumentException("Missing roles array in JWT");

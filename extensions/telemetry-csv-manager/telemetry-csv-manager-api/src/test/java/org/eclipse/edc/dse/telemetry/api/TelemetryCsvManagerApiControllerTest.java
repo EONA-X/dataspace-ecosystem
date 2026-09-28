@@ -96,6 +96,14 @@ class TelemetryCsvManagerApiControllerTest {
     }
 
     @Test
+    void getReportShouldReturn401WhenJwtIsExpired() {
+        String jwt = buildJwtWithPayload("{\"roles\":[\"Participant." + PARTICIPANT_NAME + "\"],\"exp\":1577836800}");
+        Response response = controller.getReport(jwt, VALID_MONTH, VALID_YEAR);
+        assertThat(response.getStatus()).isEqualTo(401);
+        verify(monitor).warning(anyString());
+    }
+
+    @Test
     void getReportShouldReturn403WhenJwtHasNoParticipantRole() {
         String jwt = buildJwtWithPayload("{\"roles\":[\"Admin\"]}");
         Response response = controller.getReport(jwt, VALID_MONTH, VALID_YEAR);
