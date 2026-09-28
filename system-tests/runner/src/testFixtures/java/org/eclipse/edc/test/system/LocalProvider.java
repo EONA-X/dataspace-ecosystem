@@ -16,6 +16,7 @@ public class LocalProvider extends AbstractParticipant {
     public static final String OAUTH2_CLIENT_SECRET = "supersecret";
     public static final String ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED = "rest-api-route-domain-restricted";
     public static final String ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED = "rest-api-travel-domain-restricted";
+    public static final String ASSET_ID_REST_API_EXPIRED = "rest-api-expired";
 
     @Override
     protected String name() {

@@ -70,6 +70,7 @@ import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_20_SEC_API
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_DOMAIN;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_EMBEDDED_QUERY_PARAMS;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_EXPIRED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_OAUTH2;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED;
@@ -291,6 +292,13 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 "proxyQueryParams", Boolean.TRUE.toString()
         ), atomicConstraint("inForceDate", "lteq", "contractAgreement+20s"));
 
+        // basic api with an already-expired inForceDate policy — negotiation must terminate immediately
+        PROVIDER.createEntry(ASSET_ID_REST_API_EXPIRED, "Test Asset REST - expired", "a basic REST API with an expired inForceDate policy", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), atomicConstraint("inForceDate", "lteq", "2020-01-01T00:00:00Z"));
+
         // Kafka properties
         JsonObject jsonObject = Json.createObjectBuilder()
                 .add("topic", "my-topic")
@@ -353,6 +361,7 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                     ASSET_ID_REST_API_OAUTH2,
                     POLICY_RESTRICTED_API,
                     ASSET_ID_REST_20_SEC_API,
+                    ASSET_ID_REST_API_EXPIRED,
                     ASSET_ID_FAILURE_REST_API,
                     ASSET_ID_KAFKA_STREAM,
                     ASSET_ID_KAFKA_STREAM + "-tst-2",
@@ -519,6 +528,16 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
                 assertThat(state).isEqualTo(ContractNegotiationStates.TERMINATED.name());
             });
+        }
+
+        @Test
+        void contractNegotiation_expiredPolicy_shouldTerminate() {
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_EXPIRED);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.TERMINATED.name());
+            });
+            CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId).then().statusCode(200);
         }
 
         @Test
