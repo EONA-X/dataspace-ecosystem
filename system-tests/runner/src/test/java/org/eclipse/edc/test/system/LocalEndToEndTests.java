@@ -536,6 +536,19 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
             CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId).then().statusCode(404);
         }
 
+        @Test
+        void contractNegotiation_success_withoutTransfer() {
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.FINALIZED.name());
+
+                var agreementId = CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId)
+                        .then().statusCode(200).extract().body().jsonPath().getString("contractAgreementId");
+                assertThat(agreementId).isNotNull();
+            });
+        }
+
         public static String getContractIdFromTransferProcess(AbstractParticipant consumer, String transferProcessId) {
             return consumer.participantClient().baseManagementRequest().get("/v3/transferprocesses/" + transferProcessId).then().statusCode(200).extract().body().jsonPath().getString("contractId");
         }
