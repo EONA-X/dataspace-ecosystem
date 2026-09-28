@@ -107,6 +107,25 @@ class MembershipAttestationApiControllerTest extends RestControllerTestBase {
                     .usingRecursiveFieldByFieldElementComparatorIgnoringFields("membershipStartDate")
                     .containsExactly(attestation);
         }
+
+        @Test
+        void membership_attestation_api_query_empty_returns_empty_list() {
+            when(store.query(assertArg(spec -> assertThat(spec.getFilterExpression()).isEmpty())))
+                    .thenReturn(Stream.empty());
+
+            var retrieved = baseRequest()
+                    .contentType(JSON)
+                    .post("/request")
+                    .then()
+                    .log().ifError()
+                    .statusCode(200)
+                    .contentType(JSON)
+                    .extract()
+                    .as(new TypeRef<List<MembershipAttestation>>() {
+                    });
+
+            assertThat(retrieved).isEmpty();
+        }
     }
 
     @Nested
