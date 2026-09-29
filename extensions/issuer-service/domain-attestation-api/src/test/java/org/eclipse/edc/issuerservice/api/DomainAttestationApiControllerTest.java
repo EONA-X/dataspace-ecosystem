@@ -127,6 +127,22 @@ class DomainAttestationApiControllerTest extends RestControllerTestBase {
         }
 
         @Test
+        void domain_attestation_api_save_success() {
+            var attestation = getAttestation(AUTHORIZED_DOMAIN);
+            when(store.save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())))).thenReturn(StoreResult.success());
+
+            baseRequest()
+                    .contentType(JSON)
+                    .body(attestation)
+                    .post()
+                    .then()
+                    .log().ifError()
+                    .statusCode(204);
+
+            verify(store).save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())));
+        }
+
+        @Test
         void conflict() {
             var attestation = getAttestation();
             when(store.save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id()))))
