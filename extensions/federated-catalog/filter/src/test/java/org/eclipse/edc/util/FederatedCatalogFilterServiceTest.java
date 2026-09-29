@@ -230,6 +230,37 @@ public class FederatedCatalogFilterServiceTest {
         assertDatasetHidden("multi-offer-all-fail-asset");
     }
 
+    @Test
+    void federated_catalog_empty_returns_empty_list() throws Exception {
+        // Given: the Authority replies with an empty catalog (no participant has published any asset)
+        HttpClient emptyHttpClient = mock(HttpClient.class);
+        HttpResponse<String> emptyHttpResponse = mock(HttpResponse.class);
+        when(emptyHttpResponse.statusCode()).thenReturn(200);
+        when(emptyHttpResponse.body()).thenReturn("[]");
+        when(emptyHttpClient.send(
+                any(HttpRequest.class),
+                any(HttpResponse.BodyHandler.class)
+        )).thenReturn(emptyHttpResponse);
+
+        JsonLd jsonLd = new TitaniumJsonLd(monitor);
+        FederatedCatalogService service = new FederatedCatalogService(policyEngine, monitor, didResolverRegistry, transformerRegistry, jsonLd, emptyHttpClient);
+
+        var membershipVc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of(
+                "hello", "world",
+                "groups", List.of("EMDS", "ERDS", "ETDS", "DEPLOYTOUR"),
+                "participantId", SUBJECT
+        ));
+        var domainVc = createVc(DOMAIN_CREDENTIAL_TYPE, Map.of("domain", "route"));
+        var credentials = List.of(membershipVc, domainVc);
+        ClaimToken tokens = ClaimToken.Builder.newInstance().claim("vc", credentials).build();
+
+        // When: the federated catalog is fetched and filtered for a participant with valid credentials
+        Collection<Catalog> result = service.fetchAndFilterCatalog(tokens, PARTICIPANT_DID);
+
+        // Then: the resulting catalog list is empty, no assets are available after policy filtering
+        assertTrue(result.isEmpty(), "Expected an empty catalog list when the Authority has no published assets");
+    }
+
     private static VerifiableCredential createVc(String type, Map<String, Object> claims) {
         return VerifiableCredential.Builder.newInstance()
                 .type(type)
