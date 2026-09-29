@@ -64,6 +64,7 @@ import static org.eclipse.edc.spi.constants.CoreConstants.EDC_NAMESPACE;
 import static org.eclipse.edc.spi.core.CoreConstants.DSE_POLICY_PREFIX;
 import static org.eclipse.edc.test.system.AbstractAuthority.DOMAIN_ROUTE;
 import static org.eclipse.edc.test.system.AbstractAuthority.DOMAIN_TRAVEL;
+import static org.eclipse.edc.test.system.LocalConsumer.ASSET_ID_CONSUMER_REST_API;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_FAILURE_REST_API;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_KAFKA_STREAM;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_20_SEC_API;
@@ -339,6 +340,13 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 "baseUrl", "http://provider-backend:8080/api/provider/data",
                 "proxyQueryParams", Boolean.TRUE.toString()
         ), restrictedDiscoveryClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:eq", DOMAIN_TRAVEL));
+
+        // asset published by the consumer itself, so its own catalog is no longer empty
+        CONSUMER.createEntry(ASSET_ID_CONSUMER_REST_API, "Consumer REST API", "a basic REST API published by the consumer", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ));
     }
 
     private static JsonObject genericClaimConstraint(String credentialType, String path, String operator, String rightOperand) {
@@ -378,7 +386,20 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
 
         @Test
         void catalog_consumer() {
-            assertThat(queryParticipantDatasets(AUTHORITY, CONSUMER.did(), CONSUMER.controlPlaneCatalogFilterUrl())).isEmpty();
+            // The consumer's own catalog must never leak provider-owned assets — it may contain
+            // assets the consumer itself published (see catalog_consumer_with_assets()).
+            assertThat(queryParticipantDatasets(AUTHORITY, CONSUMER.did(), CONSUMER.controlPlaneCatalogFilterUrl()))
+                    .noneMatch(dataset -> ASSET_ID_REST_API.equals(dataset.getString(ID)));
+        }
+
+        @Test
+        void catalog_consumer_with_assets() {
+            var datasets = queryParticipantDatasets(AUTHORITY, CONSUMER.did(), CONSUMER.controlPlaneCatalogFilterUrl());
+
+            assertThat(datasets).anyMatch(dataset -> ASSET_ID_CONSUMER_REST_API.equals(dataset.getString(ID)));
+            datasets.stream()
+                    .filter(dataset -> ASSET_ID_CONSUMER_REST_API.equals(dataset.getString(ID)))
+                    .forEach(dataset -> assertThat(dataset.get(EDC_NAMESPACE + "createdAt")).isNotNull());
         }
 
         @Test
