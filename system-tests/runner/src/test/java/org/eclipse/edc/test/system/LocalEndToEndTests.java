@@ -387,6 +387,19 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                     .anyMatch(dataset -> ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED.equals(dataset.getString(ID)))
                     .noneMatch(dataset -> ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED.equals(dataset.getString(ID)));
         }
+
+        @Test
+        void catalog_restricted_discovery_symmetric_travel_hidden() {
+            // CONSUMER only holds a DomainCredential for 'route' (see AbstractAuthority.createParticipant()),
+            // never one for 'travel'. The asset restricted to domain='travel' must therefore be filtered out
+            // of the catalog/discovery response itself, not just rejected at contract negotiation time
+            // (see transfer_forRestrictedDiscoveryAssets_NotAvailable for that other, contractual, observable).
+            var datasets = queryParticipantDatasets(AUTHORITY, PROVIDER.did(), CONSUMER.controlPlaneCatalogFilterUrl());
+
+            assertThat(datasets)
+                    .noneMatch(dataset -> ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED.equals(dataset.getString(ID)))
+                    .anyMatch(dataset -> ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED.equals(dataset.getString(ID)));
+        }
     }
 
     @Nested
