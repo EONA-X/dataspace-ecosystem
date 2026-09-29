@@ -513,6 +513,22 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
         }
 
         @Test
+        void transfer_rest_api_no_token_returns_401() {
+            negotiationContractAndStartTransfer(CONSUMER, PROVIDER, ASSET_ID_REST_API);
+
+            var response = CONSUMER.participantClient().baseDataRequest()
+                    .when()
+                    .get()
+                    .then()
+                    .statusCode(401)
+                    .extract()
+                    .body()
+                    .as(TransferErrorResponse.class);
+
+            assertThat(response.getErrors()).containsExactly("Missing Authorization Header");
+        }
+
+        @Test
         void transfer_whenContractExpiration_shouldTerminateTransferProcessAtExpiration() {
             var message = UUID.randomUUID().toString();
             var expectedMsg = Map.of("message", message);
