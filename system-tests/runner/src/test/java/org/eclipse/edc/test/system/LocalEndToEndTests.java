@@ -72,6 +72,7 @@ import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_DOMAIN;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_EMBEDDED_QUERY_PARAMS;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_EXPIRED;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_IN;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_OAUTH2;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED;
@@ -254,6 +255,13 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 "baseUrl", "http://provider-backend:8080/api/provider/data",
                 "proxyQueryParams", Boolean.TRUE.toString()
         ), genericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:eq", DOMAIN_ROUTE));
+
+        // api restricted to consumers holding a DomainCredential whose domain is in ['route','travel']
+        PROVIDER.createEntry(ASSET_ID_REST_API_GENERIC_IN, "Test Asset REST - generic claim IN", "a basic REST API restricted by a GenericClaim IN constraint", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), genericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:in", "['route','travel']"));
 
         // api returning not authorized
         PROVIDER.createEntry(ASSET_ID_FAILURE_REST_API, "Failure REST API", "a REST API returning not authorized", Map.of(
@@ -608,6 +616,23 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
         @Test
         void contractNegotiation_success_withoutTransfer() {
             var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.FINALIZED.name());
+
+                var agreementId = CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId)
+                        .then().statusCode(200).extract().body().jsonPath().getString("contractAgreementId");
+                assertThat(agreementId).isNotNull();
+            });
+        }
+
+        @Test
+        void contract_negotiation_generic_claim_in_success() {
+            // Provider asset rest-api-generic-in requires GenericClaim.$.DomainCredential.domain IN ['route','travel'].
+            // CONSUMER already holds a DomainCredential with domain='route' via AbstractAuthority.createParticipant(),
+            // so JsonPathCredentialConstraintFunction.parseArrayString() must resolve the constraint to true and the
+            // negotiation must reach FINALIZED.
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_GENERIC_IN);
             await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
                 var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
                 assertThat(state).isEqualTo(ContractNegotiationStates.FINALIZED.name());
