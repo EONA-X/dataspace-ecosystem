@@ -18,6 +18,8 @@ public class LocalProvider extends AbstractParticipant {
     public static final String ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED = "rest-api-travel-domain-restricted";
     public static final String ASSET_ID_REST_API_EXPIRED = "rest-api-expired";
     public static final String ASSET_ID_REST_API_GENERIC_IN = "rest-api-generic-in";
+    public static final String ASSET_ID_REST_API_GENERIC_EQ_STRICT = "rest-api-generic-eq-strict";
+    public static final String ASSET_ID_REST_API_GENERIC_EQ_FULL_MEMBER = "rest-api-generic-eq-full-member";
 
     @Override
     protected String name() {

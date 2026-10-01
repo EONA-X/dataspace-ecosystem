@@ -72,6 +72,8 @@ import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_DOMAIN;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_EMBEDDED_QUERY_PARAMS;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_EXPIRED;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_EQ_FULL_MEMBER;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_EQ_STRICT;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_IN;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_OAUTH2;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED;
@@ -262,6 +264,22 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 "baseUrl", "http://provider-backend:8080/api/provider/data",
                 "proxyQueryParams", Boolean.TRUE.toString()
         ), genericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:in", "['route','travel']"));
+
+        // api restricted to consumers whose MembershipCredential membership.membershipType equals 'Full';
+        // every seeded participant actually holds 'FullMember' (AbstractAuthority.createParticipantMembershipAttestation()),
+        // so this constraint is never satisfied and the negotiation must terminate.
+        PROVIDER.createEntry(ASSET_ID_REST_API_GENERIC_EQ_STRICT, "Test Asset REST - generic claim EQ strict", "a basic REST API restricted by a GenericClaim EQ constraint on membershipType", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), genericClaimConstraint(MEMBERSHIP_CREDENTIAL_TYPE, "membership.membershipType", "odrl:eq", "Full"));
+
+        // control for the strict asset above: same constraint path, but on the value every seeded participant holds
+        PROVIDER.createEntry(ASSET_ID_REST_API_GENERIC_EQ_FULL_MEMBER, "Test Asset REST - generic claim EQ full member", "a basic REST API restricted by a GenericClaim EQ constraint on membershipType FullMember", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), genericClaimConstraint(MEMBERSHIP_CREDENTIAL_TYPE, "membership.membershipType", "odrl:eq", "FullMember"));
 
         // api returning not authorized
         PROVIDER.createEntry(ASSET_ID_FAILURE_REST_API, "Failure REST API", "a REST API returning not authorized", Map.of(
@@ -641,6 +659,31 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                         .then().statusCode(200).extract().body().jsonPath().getString("contractAgreementId");
                 assertThat(agreementId).isNotNull();
             });
+        }
+
+        @Test
+        void contract_negotiation_generic_claim_eq_on_membership_type_success() {
+            // Control for contract_negotiation_generic_claim_eq_fails: same constraint path
+            // (membership.membershipType) with the value the consumer actually holds ('FullMember'),
+            // proving the path resolves and the strict asset is rejected because of the compared value.
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_GENERIC_EQ_FULL_MEMBER);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.FINALIZED.name());
+            });
+        }
+
+        @Test
+        void contract_negotiation_generic_claim_eq_fails() {
+            // Provider asset rest-api-generic-eq-strict requires GenericClaim.$.MembershipCredential.membership.membershipType EQ 'Full'.
+            // CONSUMER holds membershipType='FullMember', so the EQ comparison is false and the negotiation must reach TERMINATED.
+            // The sibling success test uses the same path with 'FullMember' to prove the rejection comes from the compared value.
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_GENERIC_EQ_STRICT);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.TERMINATED.name());
+            });
+            CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId).then().statusCode(200);
         }
 
         public static String getContractIdFromTransferProcess(AbstractParticipant consumer, String transferProcessId) {
