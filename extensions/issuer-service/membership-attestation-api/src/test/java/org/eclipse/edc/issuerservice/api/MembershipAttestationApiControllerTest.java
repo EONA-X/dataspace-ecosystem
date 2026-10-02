@@ -22,6 +22,9 @@ import java.util.stream.Stream;
 import static io.restassured.RestAssured.given;
 import static io.restassured.http.ContentType.JSON;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -183,6 +186,25 @@ class MembershipAttestationApiControllerTest extends RestControllerTestBase {
                     .statusCode(204);
 
             verify(store).update(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())));
+        }
+
+        @Test
+        void membership_attestation_api_update_not_found_returns_404() {
+            var unknownId = "membership-attest-inexistant-999";
+            var attestation = new MembershipAttestation(unknownId, "did:web:consumer.example.com", "consumer", "Full", Instant.now(), List.of());
+            when(store.update(any())).thenReturn(StoreResult.notFound("Attestation with id '%s' does not exist".formatted(unknownId)));
+
+            baseRequest()
+                    .contentType(JSON)
+                    .body(attestation)
+                    .put()
+                    .then()
+                    .log().ifError()
+                    .statusCode(404)
+                    .body("[0].type", equalTo("ObjectNotFound"))
+                    .body("[0].message", containsString(unknownId));
+
+            verify(store).update(assertArg(a -> assertThat(a.id()).isEqualTo(unknownId)));
         }
     }
 

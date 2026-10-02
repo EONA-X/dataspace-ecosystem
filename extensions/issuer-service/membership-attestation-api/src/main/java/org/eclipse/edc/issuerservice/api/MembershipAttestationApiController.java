@@ -51,7 +51,7 @@ public class MembershipAttestationApiController implements MembershipAttestation
     @Override
     public void updateMembershipAttestation(@PathParam("participantContextId") String participantContextId, MembershipAttestationDto dto) {
         var attestation = toAttestation(dto);
-        from(store.update(attestation)).orElseThrow(exceptionMapper(MembershipAttestation.class));
+        from(store.update(attestation)).orElseThrow(exceptionMapper(MembershipAttestation.class, attestation.id()));
     }
 
     @DELETE
