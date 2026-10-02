@@ -885,5 +885,10 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
             given().baseUri(AUTHORITY.csvManagerUrl()).body(buildGenerationJson(CONSUMER.name(), month, year)).contentType(JSON).post().then().statusCode(201);
             given().baseUri(AUTHORITY.csvManagerUrl()).params(Map.of("month", month, "year", year)).contentType(JSON).get().then().statusCode(401);
         }
+
+        @Test
+        void testRetrieveReportWithMalformedJwtFails() {
+            given().baseUri(AUTHORITY.csvManagerUrl()).params(Map.of("month", 9, "year", 2025)).contentType(JSON).header("Authorization", "Bearer notajwt").get().then().statusCode(401);
+        }
     }
 }
