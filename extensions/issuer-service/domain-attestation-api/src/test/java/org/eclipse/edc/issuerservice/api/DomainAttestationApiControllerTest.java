@@ -179,7 +179,7 @@ class DomainAttestationApiControllerTest extends RestControllerTestBase {
     class Update {
 
         @Test
-        void success() {
+        void domain_attestation_api_update_success() {
             var attestation = getAttestation();
             when(store.update(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())))).thenReturn(StoreResult.success());
 
