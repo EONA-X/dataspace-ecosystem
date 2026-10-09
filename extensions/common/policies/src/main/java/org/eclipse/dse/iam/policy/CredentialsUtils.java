@@ -9,6 +9,7 @@ import org.eclipse.edc.util.reflection.ReflectionUtil;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
 import static org.eclipse.edc.policy.model.Operator.EQ;
 import static org.eclipse.edc.policy.model.Operator.HAS_PART;
 import static org.eclipse.edc.policy.model.Operator.IN;
+import static org.eclipse.edc.policy.model.Operator.IS_NONE_OF;
 import static org.eclipse.edc.policy.model.Operator.NEQ;
 
 /**
@@ -77,6 +79,15 @@ public final class CredentialsUtils {
                 .collect(Collectors.toList());
     }
 
+    /** An empty deny-list is an authoring error: fail closed rather than admit everyone. */
+    static boolean checkNoneOfRightOperand(List<String> right, PolicyContext policyContext) {
+        if (right.isEmpty()) {
+            policyContext.reportProblem("Right operand of IS_NONE_OF must list at least one value.");
+            return false;
+        }
+        return true;
+    }
+
     static String sanitizeLeftOperand(String leftOperand, String constraintPrefix) {
         return leftOperand.replace("%s.$.".formatted(constraintPrefix), "");
     }
@@ -116,6 +127,7 @@ public final class CredentialsUtils {
             case EQ -> left.equals(right);
             case NEQ -> !left.equals(right);
             case IN -> ((List<String>) right).contains(left);
+            case IS_NONE_OF -> !((List<String>) right).contains(left);
             // JSON-LD can collapse a singleton-list claim to a bare scalar, so treat HAS_PART here as a singleton match.
             case HAS_PART -> left.equals(right);
             default -> {
@@ -126,10 +138,14 @@ public final class CredentialsUtils {
     }
 
     static boolean evaluateCollectionField(Collection<?> left, Operator operator, Object right, PolicyContext policyContext) {
-        if (operator != HAS_PART) {
-            policyContext.reportProblem("Operator '%s' is not supported for a list claim value, only HAS_PART is".formatted(operator));
-            return false;
-        }
-        return left.contains(right);
+        return switch (operator) {
+            case HAS_PART -> left.contains(right);
+            // Deny-list on a set-valued claim: no value of the claim may appear in the right operand.
+            case IS_NONE_OF -> Collections.disjoint(left, (List<String>) right);
+            default -> {
+                policyContext.reportProblem("Operator '%s' is not supported for a list claim value, only HAS_PART and IS_NONE_OF are".formatted(operator));
+                yield false;
+            }
+        };
     }
 }

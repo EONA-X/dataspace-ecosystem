@@ -30,10 +30,12 @@ Eclipse EDC's ODRL policy engine ships generic operators (`EQ`, `HAS_PART`, ...)
 Three constraint functions, all extending `AbstractDynamicCredentialConstraintFunction` (a thin base delegating to `CredentialsUtils` — the module's shared, static-method-only home for `getCredentialList` — reads the `"vc"` claim off the `ParticipantAgent`, i.e. the credentials already verified and attached earlier in the request pipeline — plus `parseListEncodedClaim`, `evaluateClaims`/`evaluateField`/`evaluateCollectionField`, `sanitizeClaims`, and `sanitizeLeftOperand`, used by the two claim-path-based functions below and, directly, by `NonFullMemberDefaultDenyValidator`):
 
 - **`MembershipConstraintFunction`** — left-operand `eox-policy:Membership`, right-operand must be the literal `"active"`; passes if the participant holds *any* `MembershipCredential`, regardless of claim content.
-- **`JsonPathCredentialConstraintFunction`** — left-operand `eox-policy:GenericClaim.$.<CredentialType>.<dotted.claim.path>`; supports `EQ`/`NEQ`/`IN`/`HAS_PART` against the named claim inside that credential type's `credentialSubject`.
+- **`JsonPathCredentialConstraintFunction`** — left-operand `eox-policy:GenericClaim.$.<CredentialType>.<dotted.claim.path>`; supports `EQ`/`NEQ`/`IN`/`HAS_PART`/`IS_NONE_OF` against the named claim inside that credential type's `credentialSubject`.
 - **`CatalogDiscoveryConstraintFunction`** — same claim-evaluation logic as `JsonPathCredentialConstraintFunction`, shared via `CredentialsUtils` (see [Testing](#testing)), left-operand `eox-policy:RestrictedDiscoveryClaim.$.<CredentialType>.<path>`. Deliberately bound to `CATALOG_DISCOVERY_SCOPE`/`NEGOTIATION_SCOPE`/`TRANSFER_SCOPE` only, **not** `CATALOG_SCOPE` (see `registerBindings` in `PolicyEvaluationExtension`) — so the same policy used as both `accessPolicyId` and `contractPolicyId` still shows the offer in the provider's own raw catalog (constraint unbound there → dropped by `ScopeFilter` → unconditional permit), while the actual gating happens in the authority's federated-catalog-filter and again at negotiation/transfer.
 
 For any claim value that is a `String`, `CredentialsUtils.evaluateClaims` (used by `JsonPathCredentialConstraintFunction`, `CatalogDiscoveryConstraintFunction`, and `NonFullMemberDefaultDenyValidator`) first tries `parseListEncodedClaim`: if the string looks like a serialized list (`{a,b}` — Postgres array literal — or `["a","b"]` — JSON array), it's parsed back into a `List<String>` and evaluated as a collection; otherwise it's evaluated as a scalar. A scalar claim under `HAS_PART` is treated as "does the singleton match" rather than rejected, since JSON-LD compaction legitimately collapses a real single-element list claim into a bare scalar before it ever reaches this code — a claim that lost its list-ness through a lower-level bug (e.g. a naive DB read of an array column, #595) looks identical by the time it gets here, which is exactly why `parseListEncodedClaim` exists as a second line of defense independent of whatever fixed the value at the source.
+
+`IS_NONE_OF` (`odrl:isNoneOf`) is the deny-list counterpart of `IN` (`odrl:isPartOf`), and takes the same right-operand forms (a `List`, or an array string such as `['a','b']`). On a scalar claim it passes when the value is not in the list; on a list claim it passes when the two are disjoint (no value of the claim is in the list), e.g. `eox-policy:GenericClaim.$.MembershipCredential.groups` `odrl:isNoneOf` `['SANCTIONED']`. Like every other operator it fails closed: a missing credential or claim, or an empty right-operand list, does not satisfy the constraint.
 
 **`NonFullMemberDefaultDenyValidator`** is a `PolicyValidatorRule<C>` (not a constraint function — pre-evaluation gate registered via `PolicyEngine.registerPreValidator`, since a constraint function only runs when a policy's leftOperand matches, and this needs to deny when a constraint is *absent*). It inverts the default outcome for non-`FullMember` participants: a dataset's policy implicitly allows any participant satisfying it unless this rule denies first. `membershipType == "FullMember"` → unaffected. `membershipType` present and not `"FullMember"` → denied unless the dataset's policy declares a top-level `AtomicConstraint` `eox-policy:RestrictedDiscoveryClaim.$.MembershipCredential.membership.membershipType EQ "<that type>"` (a constraint nested in a `MultiplicityConstraint`, or using any other operator, doesn't count). No `MembershipCredential` presented at all → hard-denied, allow never overrides this. Registered against `CatalogDiscoveryPolicyContext`, `ContractNegotiationPolicyContext`, and `TransferProcessPolicyContext` in `PolicyEvaluationExtension.registerPreValidators()` — deliberately not against `CatalogPolicyContext`/`CATALOG_SCOPE` (see the `CatalogDiscoveryConstraintFunction` scope-binding note above) and not wired into `IatpPatchExtension`.
 
@@ -53,7 +55,7 @@ extensions/common/policies/
 │       ├── CredentialsUtils.java                 # shared statics: getCredentialList, parseListEncodedClaim, evaluateClaims/evaluateField/evaluateCollectionField, sanitizeClaims, sanitizeLeftOperand
 │       ├── AbstractDynamicCredentialConstraintFunction.java  # thin base for the 3 constraint functions below, delegates to CredentialsUtils
 │       ├── MembershipConstraintFunction.java     # "Membership" == "active" (holds any MembershipCredential)
-│       ├── JsonPathCredentialConstraintFunction.java   # "GenericClaim.$.<Type>.<path>" EQ/NEQ/IN/HAS_PART
+│       ├── JsonPathCredentialConstraintFunction.java   # "GenericClaim.$.<Type>.<path>" EQ/NEQ/IN/HAS_PART/IS_NONE_OF
 │       ├── CatalogDiscoveryConstraintFunction.java     # "RestrictedDiscoveryClaim.$.<Type>.<path>", shared claim-evaluation logic, narrower scope binding
 │       ├── CatalogDiscoveryPolicyContext.java    # PolicyContext + CATALOG_DISCOVERY_SCOPE, used by federated-catalog-filter
 │       ├── CredentialTypePredicate.java          # Predicate<VerifiableCredential> matching by type suffix
@@ -85,6 +87,15 @@ Three policy shapes, matching what `test-transfert-playground.sh --policy-type <
 }
 ```
 
+**Generic claim deny-list (`isNoneOf`):**
+```json
+{
+  "leftOperand": "eox-policy:GenericClaim.$.DomainCredential.domain",
+  "operator": "odrl:isNoneOf",
+  "rightOperand": "['travel']"
+}
+```
+
 **Restricted catalog discovery (e.g. `groups-emds`, #595 — list-valued claim):**
 ```json
 {
@@ -105,7 +116,8 @@ There is no `Monitor` logging in this module (the `Monitor` injected into `Polic
 - No `"vc"` claim, wrong type, or empty VC list on the `ParticipantAgent` (`getCredentialList`)
 - No credential of the expected type found, or no `credentialSubject` on it
 - Left-operand path with fewer than two dot-separated segments
-- Operator not supported for the claim's actual shape (e.g. `EQ` on a list claim, or anything but `HAS_PART` on a list)
+- Operator not supported for the claim's actual shape (e.g. `EQ` on a list claim, or anything but `HAS_PART`/`IS_NONE_OF` on a list)
+- Empty `IS_NONE_OF` right-operand (an empty deny-list fails closed instead of admitting everyone)
 - Malformed `IN` right-operand (not a `List` and not a bracketed array string)
 
 ## Wiring / Deployment
@@ -129,7 +141,7 @@ implementation(project(":extensions:common:policies"))
 
 - `CredentialsUtils`-level coverage lives inside each caller's own test class (no direct test of the utility class in isolation).
 - `MembershipConstraintFunctionTest`, `CredentialTypePredicateTest`, `DefaultScopeExtractorTest`, `PolicyEvaluationExtensionTest`, `NonFullMemberDefaultDenyValidatorTest` — one test class per remaining class.
-- `JsonPathCredentialConstraintFunctionTest` / `CatalogDiscoveryConstraintFunctionTest` — parameterized `evaluate` matrix (EQ/NEQ/IN/HAS_PART, namespaced claim keys, nested paths) plus dedicated cases for: scalar `HAS_PART` (JSON-LD singleton collapse), list `HAS_PART`, Postgres array-literal string claim, JSON array string claim, empty list-encoded string. The two production classes still differ in their `IN` right-operand parsing (`CatalogDiscoveryConstraintFunction.parseToList` vs `JsonPathCredentialConstraintFunction.parseRightOperandForInOperator`/`parseArrayString`) and left-operand namespace constant, but the claim-evaluation core (`evaluateClaims`/`evaluateField`/`evaluateCollectionField`/`sanitizeClaims`/`sanitizeLeftOperand`) that used to be duplicated between them now lives once in `CredentialsUtils` — the two test classes still test it independently through each subclass's `evaluate`.
+- `JsonPathCredentialConstraintFunctionTest` / `CatalogDiscoveryConstraintFunctionTest` — parameterized `evaluate` matrix (EQ/NEQ/IN/HAS_PART/IS_NONE_OF, namespaced claim keys, nested paths) plus dedicated cases for: scalar `HAS_PART` (JSON-LD singleton collapse), list `HAS_PART`, Postgres array-literal string claim, JSON array string claim, empty list-encoded string. The two production classes still differ in their `IN` right-operand parsing (`CatalogDiscoveryConstraintFunction.parseToList` vs `JsonPathCredentialConstraintFunction.parseRightOperandForInOperator`/`parseArrayString`) and left-operand namespace constant, but the claim-evaluation core (`evaluateClaims`/`evaluateField`/`evaluateCollectionField`/`sanitizeClaims`/`sanitizeLeftOperand`) that used to be duplicated between them now lives once in `CredentialsUtils` — the two test classes still test it independently through each subclass's `evaluate`.
 - `NonFullMemberDefaultDenyValidatorTest` — calls `apply(Policy, C)` directly against fixture `ParticipantAgent`/`Policy`/VC data (same seam style as the constraint-function tests, no live `PolicyEngine`/DCP presentation); covers FullMember with/without allow, non-FullMember with matching/non-matching (wrong operator, wrong value, nested in a `MultiplicityConstraint`) allow, no-`MembershipCredential` with/without allow, and a malformed `vc` claim.
 
 ```bash

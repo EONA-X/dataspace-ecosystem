@@ -75,6 +75,8 @@ import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_EXPIRE
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_EQ_FULL_MEMBER;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_EQ_STRICT;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_IN;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_NONE_OF;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_NONE_OF_EXCLUDED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_OAUTH2;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED;
@@ -264,6 +266,20 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 "baseUrl", "http://provider-backend:8080/api/provider/data",
                 "proxyQueryParams", Boolean.TRUE.toString()
         ), genericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:in", "['route','travel']"));
+
+        // api closed to consumers holding a DomainCredential whose domain is in the deny-list ['travel']
+        PROVIDER.createEntry(ASSET_ID_REST_API_GENERIC_NONE_OF, "Test Asset REST - generic claim isNoneOf", "a basic REST API restricted by a GenericClaim isNoneOf constraint", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), genericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:isNoneOf", "['travel']"));
+
+        // control for the asset above: the deny-list contains the domain every consumer holds ('route')
+        PROVIDER.createEntry(ASSET_ID_REST_API_GENERIC_NONE_OF_EXCLUDED, "Test Asset REST - generic claim isNoneOf excluded", "a basic REST API whose GenericClaim isNoneOf deny-list contains the consumer's domain", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), genericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:isNoneOf", "['route','travel']"));
 
         // api restricted to consumers whose MembershipCredential membership.membershipType equals 'Full';
         // every seeded participant actually holds 'FullMember' (AbstractAuthority.createParticipantMembershipAttestation()),
@@ -679,6 +695,35 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
             // CONSUMER holds membershipType='FullMember', so the EQ comparison is false and the negotiation must reach TERMINATED.
             // The sibling success test uses the same path with 'FullMember' to prove the rejection comes from the compared value.
             var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_GENERIC_EQ_STRICT);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.TERMINATED.name());
+            });
+            CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId).then().statusCode(200);
+        }
+
+        @Test
+        void contract_negotiation_generic_claim_is_none_of_success() {
+            // Provider asset rest-api-generic-none-of requires GenericClaim.$.DomainCredential.domain isNoneOf ['travel'].
+            // CONSUMER holds a DomainCredential with domain='route', which is not in the deny-list, so the negotiation
+            // must reach FINALIZED.
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_GENERIC_NONE_OF);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.FINALIZED.name());
+
+                var agreementId = CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId)
+                        .then().statusCode(200).extract().body().jsonPath().getString("contractAgreementId");
+                assertThat(agreementId).isNotNull();
+            });
+        }
+
+        @Test
+        void contract_negotiation_generic_claim_is_none_of_fails() {
+            // Provider asset rest-api-generic-none-of-excluded requires GenericClaim.$.DomainCredential.domain isNoneOf ['route','travel'].
+            // CONSUMER holds domain='route', which is in the deny-list, so the negotiation must reach TERMINATED.
+            // The sibling success test uses the same path with a deny-list without 'route'.
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_GENERIC_NONE_OF_EXCLUDED);
             await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
                 var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
                 assertThat(state).isEqualTo(ContractNegotiationStates.TERMINATED.name());

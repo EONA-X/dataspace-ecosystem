@@ -18,6 +18,10 @@ public abstract class AbstractDynamicCredentialConstraintFunction<C extends Part
         return CredentialsUtils.checkOperator(actual, context, expectedOperators);
     }
 
+    protected boolean checkNoneOfRightOperand(List<String> right, PolicyContext context) {
+        return CredentialsUtils.checkNoneOfRightOperand(right, context);
+    }
+
     /**
      * Extracts a {@link List} of {@link VerifiableCredential} objects from the {@link ParticipantAgent}. Credentials must be
      * stored in the agent's claims map using the "vc" key.

@@ -49,7 +49,7 @@ class JsonPathCredentialConstraintFunctionTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"GT", "GEQ", "LT", "LEQ", "IS_A", "IS_ALL_OF", "IS_ANY_OF", "IS_NONE_OF"})
+    @ValueSource(strings = {"GT", "GEQ", "LT", "LEQ", "IS_A", "IS_ALL_OF", "IS_ANY_OF"})
     void unsupportedOperator(String operator) {
         var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("hello", "world"));
         var policyContext = createPolicyContext(List.of(vc));
@@ -57,7 +57,7 @@ class JsonPathCredentialConstraintFunctionTest {
         var result = function.evaluate(null, Operator.valueOf(operator), null, null, policyContext);
 
         assertThat(result).isFalse();
-        assertThat(policyContext).satisfies(expectedProblem("Invalid operator: this constraint only allows the following operators: [EQ, NEQ, IN, HAS_PART], but received '%s'.".formatted(operator)));
+        assertThat(policyContext).satisfies(expectedProblem("Invalid operator: this constraint only allows the following operators: [EQ, NEQ, IN, HAS_PART, IS_NONE_OF], but received '%s'.".formatted(operator)));
     }
 
     @ParameterizedTest
@@ -189,7 +189,7 @@ class JsonPathCredentialConstraintFunctionTest {
         var result = function.evaluate(leftOperand("groups"), Operator.EQ, "EMDS", null, policyContext);
 
         assertThat(result).isFalse();
-        assertThat(policyContext).satisfies(expectedProblem("Operator 'EQ' is not supported for a list claim value, only HAS_PART is"));
+        assertThat(policyContext).satisfies(expectedProblem("Operator 'EQ' is not supported for a list claim value, only HAS_PART and IS_NONE_OF are"));
     }
 
     @Test
@@ -238,6 +238,39 @@ class JsonPathCredentialConstraintFunctionTest {
     }
 
 
+    @Test
+    void evaluate_isNoneOf_missingClaim_failsClosed() {
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("hello", "world"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("coucou"), Operator.IS_NONE_OF, List.of("world"), null, policyContext);
+
+        assertThat(result).isFalse();
+        assertThat(policyContext).satisfies(expectedProblem("Missing string or list field 'coucou' in claims"));
+    }
+
+    @Test
+    void evaluate_isNoneOf_noCredential_failsClosed() {
+        var vc = createVc("unknown", Map.of("hello", "world"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("hello"), Operator.IS_NONE_OF, List.of("other"), null, policyContext);
+
+        assertThat(result).isFalse();
+        assertThat(policyContext).satisfies(expectedProblem("Failed to find %s.".formatted(MEMBERSHIP_CREDENTIAL_TYPE)));
+    }
+
+    @Test
+    void evaluate_isNoneOf_emptyRightOperand_failsClosed() {
+        var vc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("hello", "world"));
+        var policyContext = createPolicyContext(List.of(vc));
+
+        var result = function.evaluate(leftOperand("hello"), Operator.IS_NONE_OF, "[]", null, policyContext);
+
+        assertThat(result).isFalse();
+        assertThat(policyContext).satisfies(expectedProblem("Right operand of IS_NONE_OF must list at least one value."));
+    }
+
     private static ParticipantAgentPolicyContext createPolicyContext(List<VerifiableCredential> vcs) {
         return new TestPolicyContext(Map.of(VC_CLAIM, vcs));
     }
@@ -278,7 +311,15 @@ class JsonPathCredentialConstraintFunctionTest {
                     Arguments.of(Map.of("groups", List.of("EMDS", "ETDS")), leftOperand("groups"), Operator.HAS_PART, "EMDS", true),
                     Arguments.of(Map.of("groups", List.of("EMDS", "ETDS")), leftOperand("groups"), Operator.HAS_PART, "ERDS", false),
                     Arguments.of(Map.of("groups", List.of()), leftOperand("groups"), Operator.HAS_PART, "EMDS", false),
-                    Arguments.of(Map.of("my/namespace/" + "groups", List.of("EMDS")), leftOperand("groups"), Operator.HAS_PART, "EMDS", true)
+                    Arguments.of(Map.of("my/namespace/" + "groups", List.of("EMDS")), leftOperand("groups"), Operator.HAS_PART, "EMDS", true),
+                    Arguments.of(Map.of("foo", "bar"), leftOperand("foo"), Operator.IS_NONE_OF, List.of("hello", "world"), true),
+                    Arguments.of(Map.of("foo", "bar"), leftOperand("foo"), Operator.IS_NONE_OF, List.of("hello", "bar"), false),
+                    Arguments.of(Map.of("foo", "bar"), leftOperand("foo"), Operator.IS_NONE_OF, "['hello', 'world']", true),
+                    Arguments.of(Map.of("foo", "bar"), leftOperand("foo"), Operator.IS_NONE_OF, "['hello', 'bar']", false),
+                    Arguments.of(Map.of("groups", List.of("EMDS", "ETDS")), leftOperand("groups"), Operator.IS_NONE_OF, List.of("SANCTIONED"), true),
+                    Arguments.of(Map.of("groups", List.of("EMDS", "ETDS")), leftOperand("groups"), Operator.IS_NONE_OF, List.of("ETDS", "SANCTIONED"), false),
+                    Arguments.of(Map.of("groups", List.of()), leftOperand("groups"), Operator.IS_NONE_OF, List.of("SANCTIONED"), true),
+                    Arguments.of(Map.of("groups", "{EMDS,ETDS}"), leftOperand("groups"), Operator.IS_NONE_OF, "['EMDS']", false)
             );
         }
 

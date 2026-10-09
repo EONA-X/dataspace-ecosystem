@@ -13,11 +13,12 @@ import static org.eclipse.dse.iam.policy.PolicyConstants.DSE_GENERIC_CLAIM_CONST
 import static org.eclipse.edc.policy.model.Operator.EQ;
 import static org.eclipse.edc.policy.model.Operator.HAS_PART;
 import static org.eclipse.edc.policy.model.Operator.IN;
+import static org.eclipse.edc.policy.model.Operator.IS_NONE_OF;
 import static org.eclipse.edc.policy.model.Operator.NEQ;
 
 public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPolicyContext> extends AbstractDynamicCredentialConstraintFunction<C> {
 
-    private static final List<Operator> SUPPORTED_OPERATORS = List.of(EQ, NEQ, IN, HAS_PART);
+    private static final List<Operator> SUPPORTED_OPERATORS = List.of(EQ, NEQ, IN, HAS_PART, IS_NONE_OF);
 
     @Override
     public boolean evaluate(Object leftOperand, Operator operator, Object rightOperand, Permission rule, C policyContext) {
@@ -30,11 +31,14 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
             return false;
         }
 
-        // validate right operand for IN operator
+        // validate right operand for the list operators IN and IS_NONE_OF
         Object processedRightOperand = rightOperand;
-        if (operator.equals(IN)) {
-            var parsedRightOperand = parseRightOperandForInOperator(rightOperand, policyContext);
+        if (operator.equals(IN) || operator.equals(IS_NONE_OF)) {
+            var parsedRightOperand = parseRightOperandForInOperator(rightOperand, operator, policyContext);
             if (parsedRightOperand == null) {
+                return false;
+            }
+            if (operator.equals(IS_NONE_OF) && !checkNoneOfRightOperand(parsedRightOperand, policyContext)) {
                 return false;
             }
             processedRightOperand = parsedRightOperand;
@@ -82,22 +86,22 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
 
 
     /**
-     * Parses the right operand for IN operator, handling both List types and array-formatted strings
+     * Parses the right operand of a list operator (IN, IS_NONE_OF), handling both List types and array-formatted strings
      * like ['value1', 'value2'] or ["value1", "value2"]
      */
     @SuppressWarnings("unchecked")
-    private List<String> parseRightOperandForInOperator(Object rightOperand, PolicyContext policyContext) {
+    private List<String> parseRightOperandForInOperator(Object rightOperand, Operator operator, PolicyContext policyContext) {
         if (rightOperand instanceof List<?>) {
             try {
                 return (List<String>) rightOperand;
             } catch (ClassCastException e) {
-                policyContext.reportProblem("When operator is IN, right-operand List must contain String elements.");
+                policyContext.reportProblem("When operator is %s, right-operand List must contain String elements.".formatted(operator));
                 return null;
             }
         } else if (rightOperand instanceof String arrayString) {
             return parseArrayString(arrayString, policyContext);
         } else {
-            policyContext.reportProblem("When operator is %s, right-operand must be of type List or array string but was '%s'.".formatted(IN.toString(), rightOperand.getClass()));
+            policyContext.reportProblem("When operator is %s, right-operand must be of type List or array string but was '%s'.".formatted(operator, rightOperand.getClass()));
             return null;
         }
     }

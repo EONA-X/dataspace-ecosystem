@@ -15,12 +15,13 @@ import static org.eclipse.dse.iam.policy.PolicyConstants.DSE_RESTRICTED_CATALOG_
 import static org.eclipse.edc.policy.model.Operator.EQ;
 import static org.eclipse.edc.policy.model.Operator.HAS_PART;
 import static org.eclipse.edc.policy.model.Operator.IN;
+import static org.eclipse.edc.policy.model.Operator.IS_NONE_OF;
 import static org.eclipse.edc.policy.model.Operator.NEQ;
 
 
 public class CatalogDiscoveryConstraintFunction<C extends ParticipantAgentPolicyContext> extends AbstractDynamicCredentialConstraintFunction<C> {
 
-    private static final List<Operator> SUPPORTED_OPERATORS = List.of(EQ, NEQ, IN, HAS_PART);
+    private static final List<Operator> SUPPORTED_OPERATORS = List.of(EQ, NEQ, IN, HAS_PART, IS_NONE_OF);
     private static final Pattern STRING_VALUE_PATTERN = Pattern.compile("string=([^,}\\]]+)");
 
     @Override
@@ -38,6 +39,12 @@ public class CatalogDiscoveryConstraintFunction<C extends ParticipantAgentPolicy
         if (operator.equals(IN)) {
             List<String> parsedRightOperand = parseToList(rightOperand);
             if (parsedRightOperand.isEmpty()) {
+                return false;
+            }
+            processedRightOperand = parsedRightOperand;
+        } else if (operator.equals(IS_NONE_OF)) {
+            List<String> parsedRightOperand = parseToList(rightOperand);
+            if (!checkNoneOfRightOperand(parsedRightOperand, policyContext)) {
                 return false;
             }
             processedRightOperand = parsedRightOperand;
