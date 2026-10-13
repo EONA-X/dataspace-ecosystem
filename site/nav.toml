@@ -8,6 +8,7 @@ exclude = [
   "extensions/telemetry-agent/**",
   "extensions/common/store/sql/telemetry-store-sql/README.md",
   "extensions/data-plane/data-plane-data-consumption-metrics/README.md",
+  "site/README.md",
 ]
 
 [[section]]
