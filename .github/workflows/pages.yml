@@ -1,0 +1,71 @@
+# Publishes the documentation site to GitHub Pages. See site/README.md.
+name: Publish the documentation site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.md'
+      - 'site/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only the latest tree is worth publishing.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+        id: pages
+
+      # ubuntu-latest ships rustup; pin nothing beyond the stable toolchain.
+      - name: Install the Rust toolchain
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            site/target
+          key: pages-site-${{ runner.os }}-${{ hashFiles('site/Cargo.lock') }}
+          restore-keys: pages-site-${{ runner.os }}-
+
+      # Every tracked Markdown file must be in the navigation or excluded.
+      - name: Check the navigation
+        run: cargo run --release --locked -- --check
+
+      # Project pages are served under /<repository>/.
+      - name: Render the site
+        env:
+          SITE_BASE: ${{ steps.pages.outputs.base_path }}
+          SITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}
+        run: cargo run --release --locked -- --out dist
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

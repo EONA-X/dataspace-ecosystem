@@ -51,3 +51,7 @@ Chart.lock
 /.claude/*
 
 .task/
+
+# Documentation site
+site/target
+site/dist

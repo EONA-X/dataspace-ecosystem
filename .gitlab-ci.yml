@@ -31,6 +31,7 @@ include:
       deploy_tag: $[[ inputs.deploy_tag ]]
       deploy_include: $[[ inputs.deploy_include ]]
   - local: '/.gitlab/ci/github-sync.yml'
+  - local: '/.gitlab/ci/pages.yml'
 
 stages:
   - build

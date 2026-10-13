@@ -29,7 +29,7 @@ By installing the Checkstyle plugin in your IDE, you can get real-time feedback 
 write code. This can help you catch issues early and ensure that your code adheres to the project's coding standards.
 
 After the installation, you can configure the Checkstyle plugin to use the
-provided [XML configuration file](resources/checkstyle-config.xml). This will ensure that the plugin checks your code
+provided [XML configuration file](resources/checkstyle.xml). This will ensure that the plugin checks your code
 against the same rules that are enforced in the CI build process.
 
 ## PR checkstyle validation
@@ -46,8 +46,8 @@ style throughout the project.
 
 ### IntelliJ IDEA
 
-![Intellij Code Save Action](images/saveaction_intellij.png)
+In *Settings → Tools → Actions on Save*, enable *Reformat code* and *Optimize imports*.
 
 ### Eclipse
 
-![Eclipse Code Save Action](images/saveaction_eclipse.png)
+In *Preferences → Java → Editor → Save Actions*, enable *Format source code* and *Organize imports*.

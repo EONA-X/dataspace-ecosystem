@@ -8,9 +8,9 @@ This is the complete documentation for the Kafka Proxy Kubernetes Manager, a ser
 - [How It Works](#how-it-works)
 - [Architecture Components](#architecture-components)
 - [Configuration Reference](#configuration-reference)
-- [Vault Integration](#vault-integration)
-- [Authentication](#authentication)
-- [TLS Configuration](#tls-configuration)
+- [Vault Folder Organization](#vault-folder-organization)
+- [Authentication Mechanisms](#authentication-mechanisms)
+- [TLS Listener Configuration](#tls-listener-configuration)
 - [Security Considerations](#security-considerations)
 
 ## Overview
@@ -783,7 +783,7 @@ These settings configure how **clients authenticate to the proxy's listener port
 | `kafka.proxy.auth.mechanism` | String | `PLAIN` | Authentication mechanism. `PLAIN` = Hybrid JWT-over-PLAIN (accepts JWT as password), `OAUTHBEARER` = Proper OAuth2 flow (implements TokenInfo interface). |
 | `kafka.proxy.auth.client.id` | String | N/A | Application client ID registered in oidc ID. Used to validate JWT audience claim. Format: UUID . |
 | `kafka.proxy.auth.static.users` | String | `""` | Static users for fallback authentication. Format: `username1:password1,username2:password2`. **Only works with PLAIN mechanism.** Example: `admin:admin-secret`. **Sensitive - for testing only!** |
-| `kafka.proxy.auth.image` | String | `kafka-proxy-oidc-auth:latest` | Custom Docker image with authentication plugins. Must contain `oidc-token-verifier` (for PLAIN) or `oidc-token-info` (for OAUTHBEARER) plugins. See [Building Authentication Plugin](#building-authentication-plugin). |
+| `kafka.proxy.auth.image` | String | `kafka-proxy-oidc-auth:latest` | Custom Docker image with authentication plugins. Must contain `oidc-token-verifier` (for PLAIN) or `oidc-token-info` (for OAUTHBEARER) plugins. See [Authentication Plugin Image](#authentication-plugin-image). |
 
 **Example Authentication Configuration:**
 ```properties
@@ -819,7 +819,6 @@ kafka.proxy.tls.listener.ca.secret=
 **Note on TLS Certificates:**
 - Certificates must include appropriate SANs (Subject Alternative Names) for dynamically created service names
 - Use wildcard DNS: `*.default.svc.cluster.local` or full FQDNs
-- See [TLS_CLIENT_SETUP.md](TLS_CLIENT_SETUP.md) for client configuration details
 
 #### EDC Runtime Configuration
 

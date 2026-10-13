@@ -1,0 +1,77 @@
+# Navigation of the documentation site.
+#
+# Every tracked Markdown file must appear here or match `exclude`; `cargo run -- --check`
+# fails otherwise. An entry is a Markdown file, or a directory standing for its README.md.
+# `{ path = ..., title = ... }` overrides the title taken from the page's first heading.
+
+exclude = [
+  "extensions/telemetry-agent/**",
+  "extensions/common/store/sql/telemetry-store-sql/README.md",
+  "extensions/data-plane/data-plane-data-consumption-metrics/README.md",
+]
+
+[[section]]
+title = "Overview"
+pages = [
+  { path = "README.md", title = "Dataspace Ecosystem" },
+  { path = "EDC_UPGRADE_GUIDE_0.14.0_to_0.15.0.md", title = "EDC upgrade 0.14.0 to 0.15.0" },
+]
+
+[[section]]
+title = "Core & plugins"
+pages = [
+  "core/kafka-proxy-k8s-manager-core",
+  "plugins/kafka-proxy-auth",
+]
+
+[[section]]
+title = "Extensions"
+
+[[section.group]]
+title = "Common"
+pages = [
+  "extensions/common/policies",
+  "extensions/common/metrics/custom-micrometer",
+  "extensions/common/migration/flyway-core",
+  "extensions/common/migration/migration-shared",
+]
+
+[[section.group]]
+title = "Control plane"
+pages = [
+  "extensions/control-plane/control-plane-migration",
+]
+
+[[section.group]]
+title = "Data plane"
+pages = [
+  "extensions/data-plane/data-plane-http-header-secrets",
+  "extensions/data-plane/data-plane-migration",
+  "extensions/data-plane/sftp-source",
+]
+
+[[section.group]]
+title = "Identity hub & issuer"
+pages = [
+  "extensions/identity-hub/identity-hub-migration",
+  "extensions/issuer-service/issuer-service-migration",
+]
+
+[[section]]
+title = "Testing"
+pages = [
+  { path = "system-tests/readme.md", title = "System tests" },
+]
+
+[[section]]
+title = "Contributing"
+pages = [
+  "CONTRIBUTING.md",
+  "STYLE_GUIDE.md",
+  "PR_ETIQUETTE.md",
+  "CODE_OF_CONDUCT.md",
+  "SECURITY.md",
+  "DISCLAIMER.md",
+  "NOTICE.md",
+  "docs/upstream_contribution/serialization_claims_db.md",
+]

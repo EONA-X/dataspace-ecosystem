@@ -1,0 +1,19 @@
+[package]
+name = "docs-site"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Static documentation site for the Dataspace Ecosystem repository"
+
+# Standalone: the repository is built with Gradle, and this crate must never be
+# picked up by a parent Cargo workspace.
+[workspace]
+
+[dependencies]
+eona-ui-toolkit = { git = "https://github.com/EONA-X/eona-ui-toolkit", tag = "v0.8.0", features = ["ssr"] }
+globset = "0.4"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+toml = "0.8"
+yew = { version = "0.23", features = ["ssr"] }
