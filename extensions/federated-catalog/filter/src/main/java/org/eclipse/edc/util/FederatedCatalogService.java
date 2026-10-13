@@ -5,8 +5,11 @@ import jakarta.json.JsonArray;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
 import org.eclipse.dse.iam.policy.CatalogDiscoveryPolicyContext;
+import org.eclipse.dse.iam.policy.CredentialTypePredicate;
 import org.eclipse.edc.connector.controlplane.catalog.spi.Catalog;
 import org.eclipse.edc.connector.controlplane.catalog.spi.Dataset;
+import org.eclipse.edc.iam.verifiablecredentials.spi.model.CredentialSubject;
+import org.eclipse.edc.iam.verifiablecredentials.spi.model.VerifiableCredential;
 import org.eclipse.edc.jsonld.spi.JsonLd;
 import org.eclipse.edc.participant.spi.ParticipantAgent;
 import org.eclipse.edc.policy.engine.spi.PolicyEngine;
@@ -31,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.eclipse.dse.iam.policy.PolicyConstants.MEMBERSHIP_CREDENTIAL_TYPE;
 import static org.eclipse.edc.FilterConstants.VC_CLAIMS;
 
 
@@ -69,10 +73,12 @@ public class FederatedCatalogService {
                 monitor.warning("Encountered null catalog entry, skipping");
                 continue;
             }
-            if (catalog.getProperties().values().stream()
-                    .filter(String.class::isInstance)
-                    .map(String.class::cast)
-                    .anyMatch(v -> v.contains(participantDid))) {
+            // Self-view bypass: a participant sees 100% of what it itself published.
+            // Compares against the caller's verified identity, not the client-supplied
+            // participantDid -- that field isn't checked against the caller's credentials
+            // (see IdentityServiceValidator.validate()), so trusting it would let any
+            // participant see another's restricted catalog by passing that DID.
+            if (catalog.getParticipantId() != null && catalog.getParticipantId().equals(resolveCallerDid(policyContext.participantAgent()))) {
                 filteredCatalogs.add(catalog);
                 continue;
             }
@@ -93,6 +99,28 @@ public class FederatedCatalogService {
             filteredCatalogs.add(filteredCatalog);
         }
         return filteredCatalogs;
+    }
+
+    /**
+     * Resolves the caller's own verified DID from its MembershipCredential (every participant
+     * holds exactly one, see AbstractAuthority#createParticipant), used as the trusted identity
+     * for the self-view bypass above. Returns null if absent, which {@link #filterCatalog} treats
+     * as "never bypass" rather than matching a catalog with no participantId either.
+     */
+    private String resolveCallerDid(ParticipantAgent agent) {
+        Object vcClaim = agent.getClaims().get(VC_CLAIMS);
+        if (!(vcClaim instanceof List<?> list)) {
+            return null;
+        }
+        return list.stream()
+                .filter(VerifiableCredential.class::isInstance)
+                .map(VerifiableCredential.class::cast)
+                .filter(new CredentialTypePredicate(MEMBERSHIP_CREDENTIAL_TYPE))
+                .findFirst()
+                .map(VerifiableCredential::getCredentialSubject)
+                .flatMap(subjects -> subjects.stream().findFirst())
+                .map(CredentialSubject::getId)
+                .orElse(null);
     }
 
     /**

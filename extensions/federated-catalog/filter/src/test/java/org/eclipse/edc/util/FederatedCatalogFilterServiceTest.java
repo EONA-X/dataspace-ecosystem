@@ -81,6 +81,8 @@ public class FederatedCatalogFilterServiceTest {
     private static TypeManager typeManager = mock(TypeManager.class);
     private static Monitor monitor = mock();
     private static Collection<Catalog> filteredCatalogs;
+    private static FederatedCatalogService service;
+    private static Collection<Catalog> rawCatalogs;
 
     private static final String MULTI_OFFER_PARTIAL_ASSET = "multi-offer-partial-asset";
     private static final String MULTI_OFFER_PARTIAL_RESTRICTIVE_OFFER_ID =
@@ -106,8 +108,8 @@ public class FederatedCatalogFilterServiceTest {
         )).thenReturn(httpResponse);
 
         JsonLd jsonLd = new TitaniumJsonLd(monitor);
-        FederatedCatalogService service = new FederatedCatalogService(policyEngine, monitor, didResolverRegistry, transformerRegistry, jsonLd, httpClient);
-        Collection<Catalog> catalogs = service.retrieveCatalog();
+        service = new FederatedCatalogService(policyEngine, monitor, didResolverRegistry, transformerRegistry, jsonLd, httpClient);
+        rawCatalogs = service.retrieveCatalog();
 
         var membershipVc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of(
                 "hello", "world",
@@ -118,7 +120,7 @@ public class FederatedCatalogFilterServiceTest {
         var credentials = List.of(membershipVc, domainVc);
         ClaimToken tokens = ClaimToken.Builder.newInstance().claim("vc", credentials).build();
 
-        filteredCatalogs = service.filterCatalog(catalogs, service.createContext(tokens), PARTICIPANT_DID);
+        filteredCatalogs = service.filterCatalog(rawCatalogs, service.createContext(tokens), PARTICIPANT_DID);
     }
 
     private static void registerTransformers() {
@@ -168,6 +170,34 @@ public class FederatedCatalogFilterServiceTest {
     @Test
     void restrictedTravelAsset_doesNotMatchParticipantDomain_isHidden() {
         assertDatasetHidden("restricted-travel-asset");
+    }
+
+    @Test
+    void selfViewCatalog_bypassesPolicyEvaluation_restrictedAssetStillVisible() {
+        // "self-view-catalog" in catalogReply.json has dspace:participantId == SUBJECT (the
+        // caller's verified identity, not PARTICIPANT_DID). Its asset requires domain='travel',
+        // which the caller doesn't hold -- would be hidden under normal evaluation, but the
+        // self-view bypass must show it anyway since the catalog belongs to the caller.
+        assertDatasetVisible("self-view-restricted-travel-asset");
+    }
+
+    @Test
+    void clientSuppliedParticipantDid_isNeverTrustedForBypass() {
+        // "Attacker" holds its own valid credentials (did:web:attacker) but passes the real
+        // owner's DID (SUBJECT) as participantDid. Must stay hidden -- if this starts passing,
+        // the bypass is trusting the unauthenticated parameter again instead of the verified
+        // MembershipCredential subject.
+        var attackerMembershipVc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("participantId", "did:web:attacker"), "did:web:attacker");
+        var domainVc = createVc(DOMAIN_CREDENTIAL_TYPE, Map.of("domain", "route"), "did:web:attacker");
+        ClaimToken attackerTokens = ClaimToken.Builder.newInstance().claim("vc", List.of(attackerMembershipVc, domainVc)).build();
+
+        var result = service.filterCatalog(rawCatalogs, service.createContext(attackerTokens), SUBJECT);
+
+        boolean visible = result.stream()
+                .flatMap(c -> c.getDatasets().stream())
+                .anyMatch(d -> d.getId().equals("self-view-restricted-travel-asset"));
+        assertFalse(visible, "A client-supplied participantDid that doesn't match the caller's own " +
+                "verified identity must never trigger the self-view bypass");
     }
 
     @Test
@@ -262,11 +292,15 @@ public class FederatedCatalogFilterServiceTest {
     }
 
     private static VerifiableCredential createVc(String type, Map<String, Object> claims) {
+        return createVc(type, claims, SUBJECT);
+    }
+
+    private static VerifiableCredential createVc(String type, Map<String, Object> claims, String subjectId) {
         return VerifiableCredential.Builder.newInstance()
                 .type(type)
                 .issuer(new Issuer(ISSUER))
                 .issuanceDate(Instant.now())
-                .credentialSubject(CredentialSubject.Builder.newInstance().claims(claims).id(SUBJECT).build())
+                .credentialSubject(CredentialSubject.Builder.newInstance().claims(claims).id(subjectId).build())
                 .build();
     }
 
