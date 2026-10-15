@@ -38,7 +38,7 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
             if (parsedRightOperand == null) {
                 return false;
             }
-            if (operator.equals(IS_NONE_OF) && !checkNoneOfRightOperand(parsedRightOperand, policyContext)) {
+            if (!checkNonEmptyListRightOperand(operator, parsedRightOperand, policyContext)) {
                 return false;
             }
             processedRightOperand = parsedRightOperand;

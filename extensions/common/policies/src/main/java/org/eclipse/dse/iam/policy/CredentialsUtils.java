@@ -79,10 +79,10 @@ public final class CredentialsUtils {
                 .collect(Collectors.toList());
     }
 
-    /** An empty deny-list is an authoring error: fail closed rather than admit everyone. */
-    static boolean checkNoneOfRightOperand(List<String> right, PolicyContext policyContext) {
+    /** An empty IN/IS_NONE_OF list is an authoring error: fail closed and say so, rather than admit everyone or no one silently. */
+    static boolean checkNonEmptyListRightOperand(Operator operator, List<String> right, PolicyContext policyContext) {
         if (right.isEmpty()) {
-            policyContext.reportProblem("Right operand of IS_NONE_OF must list at least one value.");
+            policyContext.reportProblem("Right operand of %s must list at least one value.".formatted(operator));
             return false;
         }
         return true;

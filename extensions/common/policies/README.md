@@ -117,7 +117,7 @@ There is no `Monitor` logging in this module (the `Monitor` injected into `Polic
 - No credential of the expected type found, or no `credentialSubject` on it
 - Left-operand path with fewer than two dot-separated segments
 - Operator not supported for the claim's actual shape (e.g. `EQ` on a list claim, or anything but `HAS_PART`/`IS_NONE_OF` on a list)
-- Empty `IS_NONE_OF` right-operand (an empty deny-list fails closed instead of admitting everyone)
+- Empty `IN` or `IS_NONE_OF` right-operand, reported as `Right operand of <operator> must list at least one value.` (an empty deny-list fails closed instead of admitting everyone)
 - Malformed `IN` right-operand (not a `List` and not a bracketed array string)
 
 ## Wiring / Deployment

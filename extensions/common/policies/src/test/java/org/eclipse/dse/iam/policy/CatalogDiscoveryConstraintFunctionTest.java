@@ -102,6 +102,7 @@ class CatalogDiscoveryConstraintFunctionTest {
         var result = function.evaluate(leftOperand("hello"), Operator.IN, "[]", null, policyContext);
 
         assertThat(result).isFalse();
+        assertThat(policyContext).satisfies(expectedProblem("Right operand of IN must list at least one value."));
     }
 
     @Test

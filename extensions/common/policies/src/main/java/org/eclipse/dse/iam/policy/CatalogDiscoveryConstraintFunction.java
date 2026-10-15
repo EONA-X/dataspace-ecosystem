@@ -36,15 +36,9 @@ public class CatalogDiscoveryConstraintFunction<C extends ParticipantAgentPolicy
         }
 
         Object processedRightOperand;
-        if (operator.equals(IN)) {
+        if (operator.equals(IN) || operator.equals(IS_NONE_OF)) {
             List<String> parsedRightOperand = parseToList(rightOperand);
-            if (parsedRightOperand.isEmpty()) {
-                return false;
-            }
-            processedRightOperand = parsedRightOperand;
-        } else if (operator.equals(IS_NONE_OF)) {
-            List<String> parsedRightOperand = parseToList(rightOperand);
-            if (!checkNoneOfRightOperand(parsedRightOperand, policyContext)) {
+            if (!checkNonEmptyListRightOperand(operator, parsedRightOperand, policyContext)) {
                 return false;
             }
             processedRightOperand = parsedRightOperand;

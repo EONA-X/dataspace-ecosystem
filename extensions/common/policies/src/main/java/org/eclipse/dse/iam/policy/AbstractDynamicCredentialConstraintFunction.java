@@ -18,8 +18,8 @@ public abstract class AbstractDynamicCredentialConstraintFunction<C extends Part
         return CredentialsUtils.checkOperator(actual, context, expectedOperators);
     }
 
-    protected boolean checkNoneOfRightOperand(List<String> right, PolicyContext context) {
-        return CredentialsUtils.checkNoneOfRightOperand(right, context);
+    protected boolean checkNonEmptyListRightOperand(Operator operator, List<String> right, PolicyContext context) {
+        return CredentialsUtils.checkNonEmptyListRightOperand(operator, right, context);
     }
 
     /**
