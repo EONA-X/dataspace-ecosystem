@@ -7,6 +7,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.dse.spi.issuerservice.MembershipAttestation;
 import org.eclipse.dse.spi.issuerservice.MembershipAttestationStore;
 import org.eclipse.edc.identityhub.api.Versions;
@@ -42,9 +43,10 @@ public class MembershipAttestationApiController implements MembershipAttestation
 
     @POST
     @Override
-    public void createMembershipAttestation(@PathParam("participantContextId") String participantContextId, MembershipAttestationDto dto) {
+    public Response createMembershipAttestation(@PathParam("participantContextId") String participantContextId, MembershipAttestationDto dto) {
         var attestation = toAttestation(dto);
         from(store.save(attestation)).orElseThrow(exceptionMapper(MembershipAttestation.class));
+        return Response.status(Response.Status.CREATED).entity(attestation.id()).build();
     }
 
     @PUT

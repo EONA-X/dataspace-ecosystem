@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.dse.spi.issuerservice.MembershipAttestation;
 import org.eclipse.edc.spi.query.QuerySpec;
 import org.eclipse.edc.web.spi.ApiErrorDetail;
@@ -49,7 +50,7 @@ public interface MembershipAttestationAdminApi {
                             content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApiErrorDetail.class)), mediaType = "application/json"))
             }
     )
-    void createMembershipAttestation(String participantContextId, MembershipAttestationDto membershipAttestation);
+    Response createMembershipAttestation(String participantContextId, MembershipAttestationDto membershipAttestation);
 
     @Operation(description = "Updates membership attestation.",
             operationId = "updateMembershipAttestation",

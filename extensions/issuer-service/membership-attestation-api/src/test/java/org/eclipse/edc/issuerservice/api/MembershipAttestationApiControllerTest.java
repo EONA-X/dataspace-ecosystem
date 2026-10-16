@@ -135,18 +135,27 @@ class MembershipAttestationApiControllerTest extends RestControllerTestBase {
     class Save {
 
         @Test
-        void success() {
-            var attestation = getAttestation();
+        void membership_attestation_api_save_success() {
+            var attestation = new MembershipAttestation(
+                    "membership-attest-new-001",
+                    "DID_consumer",
+                    UUID.randomUUID().toString(),
+                    "FullMember",
+                    Instant.now(),
+                    List.of("EMDS"));
             when(store.save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())))).thenReturn(StoreResult.success());
 
-            baseRequest()
+            var body = baseRequest()
                     .contentType(JSON)
                     .body(attestation)
                     .post()
                     .then()
                     .log().ifError()
-                    .statusCode(204);
+                    .statusCode(201)
+                    .extract()
+                    .asString();
 
+            assertThat(body).contains(attestation.id());
             verify(store).save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())));
         }
 
