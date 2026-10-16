@@ -78,8 +78,9 @@ public class MigrationBarrier {
     /**
      * {@code CREATE TABLE IF NOT EXISTS} is not atomic in Postgres: the existence check and the
      * creation are two separate steps, so two connections racing here can both pass the check and
-     * both attempt the create, and the loser fails on a catalog unique-key violation rather than a
-     * clean "already exists" -- exactly the concurrent-boot scenario this class exists to coordinate.
+     * both attempt the create, and the loser fails on a catalog unique-key violation (23505) or on the
+     * row type created alongside the table (42710, "type already exists") rather than a clean
+     * "already exists" (42P07) -- exactly the concurrent-boot scenario this class exists to coordinate.
      * The loser's failure is not a real problem, since the winner's table is what it would have
      * created anyway, so it is swallowed rather than propagated.
      */
@@ -91,7 +92,8 @@ public class MigrationBarrier {
                         signaled_at TIMESTAMPTZ NOT NULL DEFAULT now()
                     )""".formatted(BARRIER_TABLE));
         } catch (SQLException e) {
-            boolean concurrentlyCreated = "23505".equals(e.getSQLState()) || "42P07".equals(e.getSQLState());
+            String sqlState = e.getSQLState();
+            boolean concurrentlyCreated = "23505".equals(sqlState) || "42P07".equals(sqlState) || "42710".equals(sqlState);
             if (!concurrentlyCreated) {
                 throw e;
             }

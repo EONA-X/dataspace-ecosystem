@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
@@ -40,6 +41,27 @@ class PostgresMigrationBarrierTest {
             List<Future<Void>> results = executor.invokeAll(List.of(controlPlane, dataPlane));
             // get() rethrows if either call failed or timed out -- that is the assertion.
             for (Future<Void> result : results) {
+                result.get();
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    void blockUntilSiblingsFinishNonSharedMigrations_survivesManyRuntimesRacingToCreateTheTable() throws Exception {
+        var database = PostgresTestDatabase.createEmpty();
+        var modules = IntStream.range(0, 8).mapToObj(i -> "module-" + i).toList();
+        var expected = Set.copyOf(modules);
+        var executor = Executors.newFixedThreadPool(modules.size());
+
+        try {
+            List<Callable<Void>> calls = modules.stream().<Callable<Void>>map(module -> () -> {
+                barrier.blockUntilSiblingsFinishNonSharedMigrations(database.dataSource(), module, expected, Duration.ofSeconds(10));
+                return null;
+            }).toList();
+
+            for (Future<Void> result : executor.invokeAll(calls)) {
                 result.get();
             }
         } finally {
