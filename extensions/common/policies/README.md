@@ -71,7 +71,7 @@ Dependencies (`build.gradle.kts`): `spi/common-spi`, `spi/telemetry-service-spi`
 
 ## Usage
 
-Three policy shapes, matching what `test-transfert-playground.sh --policy-type <type>` (`infrastructure/scripts/lourmel/lib/policies.sh`) generates:
+Three policy shapes:
 
 **Membership (any active member):**
 ```json
@@ -137,6 +137,72 @@ implementation(project(":extensions:common:policies"))
 
 `ServiceLoader` picks up `IatpPatchExtension` and `PolicyEvaluationExtension` automatically on any of those runtimes; no further configuration required.
 
+### Data Migration for Pre-Existing Deployments
+
+`CatalogDiscoveryConstraintFunction`/`groups-emds` (#595) depends on the `MembershipCredential` credential definition mapping the `groups` attestation field into `credentialSubject.groups`. This mapping is new — any deployment whose `membership-credential-def` was created before this fix (any format: `{input:"groups", output:"credentialSubject.groups", required:false}`) will keep issuing VCs with no `groups` claim at all, and the constraint will always report "no matching claim" regardless of policy or attestation content, until the credential definition is patched:
+
+```
+PUT .../issueradmin/v1alpha/participants/<issuer_did_b64>/credentialdefinitions
+```
+```json
+{
+  "id": "<existing-membership-credential-def-id>",
+  "attestations": ["<existing-membership-attestation-def-id>"],
+  "credentialType": "MembershipCredential",
+  "jsonSchemaUrl": "https://example.com/schema/membership-credential.json",
+  "validity": "315360000",
+  "format": "VC1_0_JWT",
+  "mappings": [
+    {"input": "name", "output": "credentialSubject.name", "required": true},
+    {"input": "membership_type", "output": "credentialSubject.membership.membershipType", "required": true},
+    {"input": "membership_start_date", "output": "credentialSubject.membership.since", "required": true},
+    {"input": "groups", "output": "credentialSubject.groups", "required": false}
+  ],
+  "rules": []
+}
+```
+(no `GET` on `credentialdefinitions`, only `POST`/`PUT` — confirm the existing `mappings` via DB before assuming they're missing `groups`.)
+
+Also make sure the holder's attestation actually carries the `groups` value the mapping will forward — the credential definition only *maps* the field, it doesn't invent its content:
+
+```
+POST/PUT .../issueradmin/v1alpha/participants/<issuer_did_b64>/attestation-membership
+```
+```json
+{
+  "id": "did:web:apim.dev.dataspace.eona-x.org:amadeus:ih:did",
+  "name": "amadeus",
+  "holderId": "did:web:apim.dev.dataspace.eona-x.org:amadeus:ih:did",
+  "membershipType": "FullMember",
+  "groups": ["EMDS"]
+}
+```
+(POST if the holder has no attestation record yet, PUT — same body — if it already exists; the admin API returns 409 on POST in that case.)
+
+The mapping change is not retroactive: VCs already sitting in `credential_resource` were issued under the old mapping and permanently lack `groups`. Since `AbstractDynamicCredentialConstraintFunction.getCredentialList` picks the first `MembershipCredential` it finds for a holder with no ordering, a pre-migration VC left in place can keep winning policy evaluation over a freshly re-issued one. Every holder needs its old `MembershipCredential`(s) purged and re-requested after the mapping fix:
+
+```
+GET .../identity/v1alpha/participants/<holder_did_b64>/credentials?type=MembershipCredential
+```
+→ collect every `"id"` in the response, then for each:
+```
+DELETE .../identity/v1alpha/participants/<holder_did_b64>/credentials/<id>
+```
+then re-request:
+```
+POST .../identity/v1alpha/participants/<holder_did_b64>/credentials/request
+```
+```json
+{
+  "issuerDid": "did:web:apim.dev.dataspace.eona-x.org:authority:ih:did",
+  "holderPid": "did:web:apim.dev.dataspace.eona-x.org:amadeus:ih:did",
+  "credentials": [
+    {"format": "VC1_0_JWT", "type": "MembershipCredential", "id": "<existing-membership-credential-def-id>"}
+  ]
+}
+```
+Decode the returned `rawVc` (JWT, 2nd `.`-separated base64 segment) and confirm `credentialSubject.groups` is present before re-testing the policy.
+
 ## Testing
 
 - `CredentialsUtils`-level coverage lives inside each caller's own test class (no direct test of the utility class in isolation).
@@ -168,9 +234,8 @@ The group-match transfer initially failed with `No dataplane found` (`TransferPr
 
 ### Result
 
-```bash
-sudo bash test-transfert-playground.sh --policy-type groups-emds
-sudo bash test-transfert-playground.sh --policy-type full-member
+```
+Negotiation + transfer run end-to-end for --policy-type groups-emds and --policy-type full-member
 ```
 
 All three scenarios above passed against the real deployment, confirming `parseListEncodedClaim` behaves the same live as asserted by the unit tests — the risk the unit tests alone couldn't cover (real Postgres array-literal serialization, real DCP presentation, real policy evaluation against a live negotiation) is now closed.
