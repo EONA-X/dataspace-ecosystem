@@ -233,6 +233,22 @@ class MembershipAttestationApiControllerTest extends RestControllerTestBase {
 
             verify(store).deleteById(attestationId);
         }
+
+        @Test
+        void membership_attestation_api_delete_not_found_returns_404() {
+            var unknownId = "membership-attest-inexistant-999";
+            when(store.deleteById(unknownId)).thenReturn(StoreResult.notFound("Attestation with id '%s' does not exist".formatted(unknownId)));
+
+            baseRequest()
+                    .delete(unknownId)
+                    .then()
+                    .log().ifError()
+                    .statusCode(404)
+                    .body("[0].type", equalTo("ObjectNotFound"))
+                    .body("[0].message", containsString(unknownId));
+
+            verify(store).deleteById(unknownId);
+        }
     }
 
 }
