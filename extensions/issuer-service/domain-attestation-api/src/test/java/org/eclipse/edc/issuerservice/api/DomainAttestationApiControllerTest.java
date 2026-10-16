@@ -111,33 +111,22 @@ class DomainAttestationApiControllerTest extends RestControllerTestBase {
     @Nested
     class Save {
         @Test
-        void success() {
-            var attestation = getAttestation();
-            when(store.save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())))).thenReturn(StoreResult.success());
-
-            baseRequest()
-                    .contentType(JSON)
-                    .body(attestation)
-                    .post()
-                    .then()
-                    .log().ifError()
-                    .statusCode(204);
-
-            verify(store).save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())));
-        }
-
-        @Test
         void domain_attestation_api_save_success() {
             var attestation = getAttestation(AUTHORIZED_DOMAIN);
             when(store.save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())))).thenReturn(StoreResult.success());
 
+            // Not asserting the response body's content here: the id it carries is only the
+            // client-supplied one echoed back by the controller, not guaranteed to be the id the
+            // store actually persisted under (SqlDomainAttestationStore still generates its own —
+            // see #926, parked). Asserting it would silently lock in that mismatch instead of
+            // flagging it.
             baseRequest()
                     .contentType(JSON)
                     .body(attestation)
                     .post()
                     .then()
                     .log().ifError()
-                    .statusCode(204);
+                    .statusCode(201);
 
             verify(store).save(assertArg(a -> assertThat(a.id()).isEqualTo(attestation.id())));
         }

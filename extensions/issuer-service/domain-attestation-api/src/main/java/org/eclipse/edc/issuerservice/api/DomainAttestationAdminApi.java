@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.core.Response;
 import org.eclipse.dse.spi.issuerservice.DomainAttestation;
 import org.eclipse.edc.spi.query.QuerySpec;
 import org.eclipse.edc.web.spi.ApiErrorDetail;
@@ -42,14 +43,14 @@ public interface DomainAttestationAdminApi {
             operationId = "createDomainAttestation",
             requestBody = @RequestBody(content = @Content(schema = @Schema(implementation = DomainAttestation.class), mediaType = "application/json")),
             responses = {
-                    @ApiResponse(responseCode = "204", description = "The domain attestation was added successfully."),
+                    @ApiResponse(responseCode = "201", description = "The domain attestation was added successfully."),
                     @ApiResponse(responseCode = "400", description = "Request body was malformed, or the request could not be processed",
                             content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApiErrorDetail.class)), mediaType = "application/json")),
                     @ApiResponse(responseCode = "409", description = "Can't add the domain attestation, because a object with the same ID already exists",
                             content = @Content(array = @ArraySchema(schema = @Schema(implementation = ApiErrorDetail.class)), mediaType = "application/json"))
             }
     )
-    void createDomainAttestation(String participantContextId, DomainAttestationDto domainAttestationDto);
+    Response createDomainAttestation(String participantContextId, DomainAttestationDto domainAttestationDto);
 
     @Operation(description = "Updates domain attestation.",
             operationId = "updateDomainAttestation",

@@ -7,6 +7,7 @@ import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.dse.spi.issuerservice.DomainAttestation;
 import org.eclipse.dse.spi.issuerservice.DomainAttestationStore;
@@ -37,12 +38,13 @@ public class DomainAttestationApiController implements DomainAttestationAdminApi
 
     @POST
     @Override
-    public void createDomainAttestation(@PathParam("participantContextId") String participantContextId, DomainAttestationDto domainAttestationDto) {
+    public Response createDomainAttestation(@PathParam("participantContextId") String participantContextId, DomainAttestationDto domainAttestationDto) {
         if (StringUtils.isEmpty(authorizedDomain) || !authorizedDomain.equals(domainAttestationDto.domain())) {
             throw new NotAuthorizedException("%s domain is not authorized to be issued".formatted(domainAttestationDto.domain()));
         }
         var attestation = toDomainAttestation(domainAttestationDto);
         from(store.save(attestation)).orElseThrow(exceptionMapper(DomainAttestation.class));
+        return Response.status(Response.Status.CREATED).entity(attestation.id()).build();
     }
 
     @PUT
