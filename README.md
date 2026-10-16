@@ -8,6 +8,9 @@
 The Dataspace Ecosystem enables interoperable, policy-governed, and auditable data exchange across organizational boundaries. It aligns with emerging dataspace standards (e.g. [GAIA-X](https://gaia-x.eu/) / IDS concepts) and leverages
 the [Eclipse EDC components](https://github.com/eclipse-edc) to build this ecosystem securely, using concepts like contracts, policies and verifiable credentials. This project is currently being developed by [Eona-X](https://eona-x.eu). 
 
+### 1.1. History
+
+This project originated as a fork of [Dataspace_Ecosystem](https://github.com/AmadeusITGroup/Dataspace_Ecosystem), a base created and open-sourced by Amadeus IT Group. The codebase was subsequently rebranded from Amadeus to Eona-X and has continued to be developed independently since.
 
 ## 2. Architecture
 
