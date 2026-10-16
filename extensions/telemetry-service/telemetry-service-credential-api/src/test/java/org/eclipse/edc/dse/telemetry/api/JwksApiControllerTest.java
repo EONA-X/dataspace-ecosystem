@@ -72,6 +72,19 @@ class JwksApiControllerTest extends RestControllerTestBase {
         verify(vault, times(1)).resolveSecret(PUBLIC_KEY_ALIAS);
     }
 
+    @Test
+    void jwks_endpoint_key_not_found_returns_404() {
+        when(vault.resolveSecret(PUBLIC_KEY_ALIAS)).thenReturn(null);
+
+        baseRequest()
+                .get("/jwks.json")
+                .then()
+                .log().ifError()
+                .statusCode(404);
+
+        verify(monitor, times(1)).warning("Public key not found in vault for alias: " + PUBLIC_KEY_ALIAS);
+    }
+
     /**
      * Generates a fresh RSA key pair and PEM-encodes the public key as an X.509
      * SubjectPublicKeyInfo block, the format expected by {@code JWK.parseFromPEMEncodedObjects}.
