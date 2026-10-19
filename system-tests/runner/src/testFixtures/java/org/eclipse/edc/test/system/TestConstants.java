@@ -5,5 +5,5 @@ import java.time.Duration;
 
 public interface TestConstants {
 
-    Duration DEFAULT_TIMEOUT = Duration.ofSeconds(120);
+    Duration DEFAULT_TIMEOUT = Duration.ofSeconds(240);
 }

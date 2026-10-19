@@ -10,7 +10,6 @@ import org.eclipse.dse.edc.spi.telemetryagent.DataConsumptionRecord;
 import org.eclipse.dse.edc.spi.telemetryagent.TelemetryRecordStore;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.telemetry.Telemetry;
-import org.eclipse.edc.web.spi.exception.InvalidRequestException;
 
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -41,8 +40,18 @@ public class DataConsumptionMetricsPublisher implements ContainerResponseFilter,
 
     @Override
     public void filter(ContainerRequestContext requestContext, ContainerResponseContext responseContext) {
-        var contractId = Optional.ofNullable(requestContext.getHeaderString(CONTRACT_ID_HEADER))
-                .orElseThrow(() -> new InvalidRequestException("Missing '%s' header in request".formatted(CONTRACT_ID_HEADER)));
+        var contractIdOpt = Optional.ofNullable(requestContext.getHeaderString(CONTRACT_ID_HEADER));
+        if (contractIdOpt.isEmpty()) {
+            // Nothing to bill: a request rejected before a contract was ever resolved (missing/
+            // invalid auth, bad input, ...) never carried a Contract-Id in the first place.
+            // This filter runs on every response including those, so throwing here would
+            // clobber an already-built error response (e.g. a clean 401) with a 500 — the
+            // request's own handler already reported whatever went wrong.
+            monitor.debug("[BillingConsumptionMetrics] no '%s' header on this response (status=%d) — skipping billing"
+                    .formatted(CONTRACT_ID_HEADER, responseContext.getStatus()));
+            return;
+        }
+        var contractId = contractIdOpt.get();
         var traceContext = telemetry.getCurrentTraceContext();
         var status = responseContext.getStatus();
 
@@ -65,10 +74,14 @@ public class DataConsumptionMetricsPublisher implements ContainerResponseFilter,
             context.proceed();
         } finally {
             var contractId = (String) context.getProperty(CONTRACT_ID_PROPERTY);
-            @SuppressWarnings("unchecked")
-            var traceContext = (Map<String, String>) context.getProperty(TRACE_CONTEXT_PROPERTY);
-            var status = (int) context.getProperty(STATUS_PROPERTY);
-            publish(contractId, countingOutput.getCount(), status, traceContext);
+            // filter() only sets these properties once it has resolved a Contract-Id (see its own
+            // early return) -- a null here means it never did, so there's nothing to bill.
+            if (contractId != null) {
+                @SuppressWarnings("unchecked")
+                var traceContext = (Map<String, String>) context.getProperty(TRACE_CONTEXT_PROPERTY);
+                var status = (int) context.getProperty(STATUS_PROPERTY);
+                publish(contractId, countingOutput.getCount(), status, traceContext);
+            }
         }
     }
 

@@ -4,7 +4,7 @@ pages:
   stage: deploy
   image: rust:1
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE != "schedule"
   needs: []
   variables:
     CARGO_HOME: $CI_PROJECT_DIR/site/target/cargo-home

@@ -33,6 +33,16 @@ include:
   - local: '/.gitlab/ci/github-sync.yml'
   - local: '/.gitlab/ci/pages.yml'
 
+# Avoids a duplicate, job-less "push" pipeline (always reported failed) alongside the real
+# merge_request_event pipeline on every commit of a branch with an open MR.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
+
 stages:
   - build
   - test

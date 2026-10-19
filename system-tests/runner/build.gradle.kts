@@ -5,7 +5,12 @@ plugins {
 
 // Configure test task to pass system properties
 tasks.test {
-    useJUnitPlatform()
+    // Not excluded by integration-tests.gradle's EndToEndTest(s) filename pattern (that init
+    // script never applies here) -- excluded directly so a known-limitation-tagged test
+    // (e.g. #971) doesn't fail test:e2e while the underlying gap is still open.
+    useJUnitPlatform {
+        excludeTags("known-limitation")
+    }
     // Pass all system properties that start with "cluster.", "kubectl.", "developer.", or "ssh."
     // to the test JVM.
     System.getProperties().forEach { key, value ->

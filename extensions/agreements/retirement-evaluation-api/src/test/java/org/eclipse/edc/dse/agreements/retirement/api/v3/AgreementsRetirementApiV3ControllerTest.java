@@ -25,6 +25,7 @@ import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import org.eclipse.edc.dse.agreements.retirement.spi.service.AgreementsRetirementService;
 import org.eclipse.edc.dse.agreements.retirement.spi.types.AgreementsRetirementEntry;
+import org.eclipse.edc.jsonld.TitaniumJsonLd;
 import org.eclipse.edc.spi.monitor.Monitor;
 import org.eclipse.edc.spi.query.Criterion;
 import org.eclipse.edc.spi.query.QuerySpec;
@@ -33,6 +34,7 @@ import org.eclipse.edc.spi.result.ServiceResult;
 import org.eclipse.edc.transform.spi.TypeTransformerRegistry;
 import org.eclipse.edc.validator.spi.JsonObjectValidatorRegistry;
 import org.eclipse.edc.validator.spi.ValidationResult;
+import org.eclipse.edc.web.jersey.providers.jsonld.JerseyJsonLdInterceptor;
 import org.eclipse.edc.web.jersey.testfixtures.RestControllerTestBase;
 import org.junit.jupiter.api.Test;
 
@@ -83,15 +85,32 @@ class AgreementsRetirementApiV3ControllerTest extends RestControllerTestBase {
                 .thenReturn(Result.success(createJsonRetirementEntry(agreement2)));
         when(service.findAll(any())).thenReturn(ServiceResult.success(List.of(entry1, entry2)));
 
+        // Truly empty body (not "{}"), matching what a real "no filter" client sends --
+        // JerseyJsonLdInterceptor.aroundReadFrom only expands when there ARE bytes to read,
+        // so this is the one request shape that skips JSON-LD expansion entirely.
         baseRequest()
                 .contentType(ContentType.JSON)
-                .body("{}")
                 .post("/request")
                 .then()
                 .log().ifError()
                 .statusCode(200)
                 .body(notNullValue())
                 .body("size()", is(2));
+    }
+
+    @Test
+    void should_rejectEmptyJsonObjectBody() {
+        // Unlike a truly empty body above, "{}" IS valid JSON that reaches JSON-LD expansion --
+        // and expands to nothing (no @context, no type), which the interceptor reports as a 400
+        // rather than silently treating it as "no filter". Documents a real behavior change: this
+        // used to return 200 before JerseyJsonLdInterceptor was registered (see dse!95).
+        baseRequest()
+                .contentType(ContentType.JSON)
+                .body("{}")
+                .post("/request")
+                .then()
+                .log().ifError()
+                .statusCode(400);
     }
 
     @Test
@@ -183,6 +202,14 @@ class AgreementsRetirementApiV3ControllerTest extends RestControllerTestBase {
     @Override
     protected Object controller() {
         return new AgreementsRetirementApiV3Controller(service, transformer, validator, monitor);
+    }
+
+    @Override
+    protected Object additionalResource() {
+        // Registered in prod by AgreementsRetirementApiExtension -- without it here, these tests
+        // only exercise the controller/transformer, never the JSON-LD expand/compact step that
+        // caused the original NPE-on-compacted-body bug (and the 400-on-"{}" behavior above).
+        return new JerseyJsonLdInterceptor(new TitaniumJsonLd(monitor), typeManager, "test", "test");
     }
 
     private JsonObject createFilterQuerySpecJson(String agreement1) {

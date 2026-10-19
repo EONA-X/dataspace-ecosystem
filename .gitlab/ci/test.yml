@@ -3,7 +3,7 @@ test:unit:
   stage: test
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
   needs: [build:compile]
   variables:
     CACHE_POLICY: "pull"
@@ -23,7 +23,7 @@ test:integration:
   stage: test
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
   needs: [build:compile]
   services:
     - name: ${REGISTRY_DIND_IMAGE}
@@ -51,7 +51,7 @@ test:lint:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       allow_failure: false
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
   needs: [build:compile]
   variables:
     CACHE_POLICY: "pull"
@@ -59,12 +59,78 @@ test:lint:
     - ./gradlew checkstyleMain checkstyleTest checkstyleTestFixtures --build-cache
   allow_failure: true
 
+test:e2e-build-push-deploy:
+  extends: .docker-build-push
+  stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+      allow_failure: true
+    - when: manual
+      allow_failure: true
+  # Shares test:e2e's resource_group below — same VM, never run both at once.
+  resource_group: lourmel-e2e
+  # No tags: [lourmel] -- doesn't need the VM network, just registry/GitLab (generic
+  # runner). lourmel runner can't docker build anyway (#21171: not in docker group).
+  script:
+    # Redeploys this commit before testing it (#21171: VM was stale 7 weeks otherwise).
+    # Scoped build, see build-package.sh. Skips modules already on Harbor on schedule.
+    - ./scripts/build-package.sh scripts/e2e-module-pairs.txt "sha-${CI_COMMIT_SHA}"
+    - ./scripts/push-package.sh scripts/e2e-module-pairs.txt "sha-${CI_COMMIT_SHA}"
+    # Reuses deploy.sh (same as dev/uat/manual), scoped to this VM's values files.
+    # --skip-argocd-sync: this runner can't reach the VM network -- test:e2e does the sync.
+    - |
+      INCLUDE="$(sed -E 's#:#/#; s#$#-values.yaml#' scripts/e2e-module-pairs.txt | paste -sd, -)"
+      # dash (this image's /bin/sh) lacks pipefail, deploy.sh pipes -- force bash.
+      bash scripts/deploy.sh \
+        --environment playground/e2e \
+        --mode push \
+        --tag "sha-${CI_COMMIT_SHA}" \
+        --include "${INCLUDE}" \
+        --skip-argocd-sync
+
 test:e2e:
   tags:
     - lourmel
   stage: test
   rules:
-    - when: never
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+      allow_failure: true
+    - when: manual
+      allow_failure: true
+  needs:
+    # Optional: build:compile absent on schedule. test:e2e-build-push-deploy deliberately
+    # not listed: GitLab blocks a manual job on an unplayed optional need too.
+    - job: build:compile
+      optional: true
+  # Shared VM/K8s state -- serializes with test:e2e-build-push-deploy, project-wide.
+  resource_group: lourmel-e2e
+  variables:
+    CACHE_POLICY: "pull"
+    # lourmel-e2e (vmid 222) — dedicated E2E VM.
+    E2E_VM_IP: "192.168.1.222"
+    E2E_DEVELOPER_NAMESPACE: "e2e"
+    # nip.io dash-encoded IP, see system-tests/readme.md.
+    E2E_CLUSTER_HOSTNAME: "192-168-1-222.nip.io"
+  before_script:
+    # Sourced, not executed -- ssh-agent env vars must stay in this shell (see script header).
+    - . scripts/ssh-setup.sh
+    - . scripts/playground-k8s-sanity-check.sh scripts/e2e-module-pairs.txt
   script:
-    - java -version
-    - ping -c 5 192.168.1.207
+    # Kafka tests omitted: needed ServiceAccount doesn't exist until VM onboarding.
+    # -DrunAllTests=true required, else edc-build silently drops all tests (false green).
+    - >
+      ./gradlew :system-tests:runner:test
+      -DrunAllTests=true
+      -Dcluster.hostname="$E2E_CLUSTER_HOSTNAME"
+      -Ddeveloper.namespace="$E2E_DEVELOPER_NAMESPACE"
+      -Dssh.user=ubuntu
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - "**/build/reports/tests/"
+    reports:
+      junit:
+        - "**/build/test-results/test/TEST-*.xml"

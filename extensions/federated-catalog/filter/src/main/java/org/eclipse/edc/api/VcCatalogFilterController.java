@@ -54,7 +54,7 @@ public class VcCatalogFilterController implements FederatedCatalogFilterApiV2 {
             IdentityServiceValidator validator =  new IdentityServiceValidator(identityService, monitor, participantId);
             ClaimToken credentials = validator.validate(req.tokenRepresentation());
             if (credentials != null) {
-                filtered = federatedCatalogService.fetchAndFilterCatalog(credentials, req.participantDid());
+                filtered = federatedCatalogService.fetchAndFilterCatalog(credentials);
             }
             if (filtered != null && !filtered.isEmpty()) {
                 return Response.ok(filtered.stream()

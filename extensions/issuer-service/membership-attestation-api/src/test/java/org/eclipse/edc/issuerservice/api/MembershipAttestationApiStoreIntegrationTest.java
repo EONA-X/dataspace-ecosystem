@@ -42,7 +42,7 @@ class MembershipAttestationApiStoreIntegrationTest extends RestControllerTestBas
     void lifecycle_createUpdateDelete_isReflectedInStore() {
         var id = UUID.randomUUID().toString();
 
-        baseRequest().contentType(JSON).body(dto(id, "FullMember")).post().then().log().ifError().statusCode(204);
+        baseRequest().contentType(JSON).body(dto(id, "FullMember")).post().then().log().ifError().statusCode(201);
         assertThat(findInStore(id)).singleElement().satisfies(a -> {
             assertThat(a.holderId()).isEqualTo(HOLDER_ID);
             assertThat(a.membershipType()).isEqualTo("FullMember");
@@ -85,7 +85,7 @@ class MembershipAttestationApiStoreIntegrationTest extends RestControllerTestBas
     @Test
     void create_existingId_returns409_andKeepsOriginal() {
         var id = UUID.randomUUID().toString();
-        baseRequest().contentType(JSON).body(dto(id, "FullMember")).post().then().log().ifError().statusCode(204);
+        baseRequest().contentType(JSON).body(dto(id, "FullMember")).post().then().log().ifError().statusCode(201);
 
         baseRequest().contentType(JSON).body(dto(id, "Associate")).post().then().log().ifError()
                 .statusCode(409)

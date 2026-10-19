@@ -21,32 +21,21 @@ spec:
       description: "deploy:manual - comma-separated list of modules to include (empty = all)"
 ---
 deploy:docker-push:
-  extends: .gradle
+  extends: .docker-build-push
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
   needs:
     - job: build:compile
     - job: test:unit
       artifacts: false
     - job: test:integration
       artifacts: false
-  services:
-    - name: ${REGISTRY_DIND_IMAGE}
-      alias: docker
-      command: ["--tls=false"]
-  variables:
-    DOCKER_HOST: "tcp://docker:2375"
-    DOCKER_TLS_CERTDIR: ""
-    DOCKER_DRIVER: overlay2
-    DOCKER_CONFIG: "./gradle"
-    CACHE_POLICY: "pull"
   script:
     - |
       IMAGE_TAG="$(date +%Y%m%d-%H%M)"
       IMAGE_TAGS="latest,${IMAGE_TAG},sha-${CI_COMMIT_SHA}"
       echo "IMAGE_TAG=${IMAGE_TAG}" > .env
-    - echo $DOCKER_AUTH_CONFIG_DEV > ./gradle/config.json
     - |
       ./gradlew shadowJar dockerize dockerPush \
         --build-cache \
@@ -106,7 +95,7 @@ deploy:retag-image:
 deploy:dev:
   stage: deploy
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
   needs:
     - job: deploy:docker-push
       artifacts: true

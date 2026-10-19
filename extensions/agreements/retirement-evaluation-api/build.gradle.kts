@@ -26,6 +26,7 @@ dependencies {
 
     implementation(project(":extensions:agreements:retirement-evaluation-spi"))
     implementation(libs.edc.api.management.config)
+    implementation(libs.edc.lib.jerseyproviders)
 
     implementation(libs.jakarta.rsApi)
 
@@ -33,6 +34,7 @@ dependencies {
     testImplementation(libs.edc.spi.core)
     testImplementation(libs.edc.junit)
     testImplementation(libs.restAssured)
+    testImplementation(libs.edc.lib.jsonld)
     testImplementation(project(":extensions:agreements:retirement-evaluation-spi"))
 }
 

@@ -72,7 +72,6 @@ public class FederatedCatalogFilterServiceTest {
     private static RuleBindingRegistry registry = new RuleBindingRegistryImpl();
     private static final String ISSUER = "did:web:issuer";
     private static final String SUBJECT = "did:web:subject";
-    private static final String PARTICIPANT_DID = "did:web:participant";
     private static ParticipantIdMapper participantIdMapper = mock(ParticipantIdMapper.class);
     private static final String CATALOG_REPLY = "/catalogReply.json";
     private static TypeTransformerRegistry transformerRegistry = new TypeTransformerRegistryImpl();
@@ -120,7 +119,7 @@ public class FederatedCatalogFilterServiceTest {
         var credentials = List.of(membershipVc, domainVc);
         ClaimToken tokens = ClaimToken.Builder.newInstance().claim("vc", credentials).build();
 
-        filteredCatalogs = service.filterCatalog(rawCatalogs, service.createContext(tokens), PARTICIPANT_DID);
+        filteredCatalogs = service.filterCatalog(rawCatalogs, service.createContext(tokens));
     }
 
     private static void registerTransformers() {
@@ -174,30 +173,29 @@ public class FederatedCatalogFilterServiceTest {
 
     @Test
     void selfViewCatalog_bypassesPolicyEvaluation_restrictedAssetStillVisible() {
-        // "self-view-catalog" in catalogReply.json has dspace:participantId == SUBJECT (the
-        // caller's verified identity, not PARTICIPANT_DID). Its asset requires domain='travel',
-        // which the caller doesn't hold -- would be hidden under normal evaluation, but the
-        // self-view bypass must show it anyway since the catalog belongs to the caller.
+        // "self-view-catalog" carries dspace:participantId == SUBJECT, the caller's own verified
+        // identity (init()'s membership VC subject). Its dataset requires a domain='travel'
+        // credential the caller doesn't hold (only 'route') -- would be hidden under normal
+        // policy evaluation, but the self-view bypass must still show it to its own owner.
         assertDatasetVisible("self-view-restricted-travel-asset");
     }
 
     @Test
-    void clientSuppliedParticipantDid_isNeverTrustedForBypass() {
-        // "Attacker" holds its own valid credentials (did:web:attacker) but passes the real
-        // owner's DID (SUBJECT) as participantDid. Must stay hidden -- if this starts passing,
-        // the bypass is trusting the unauthenticated parameter again instead of the verified
-        // MembershipCredential subject.
+    void differentParticipantCredentials_neverTriggerSelfViewBypassForAnotherCatalog() {
+        // Security regression test: an attacker with its OWN valid credentials (did:web:attacker,
+        // not SUBJECT) must never see SUBJECT's self-view-only catalog. The bypass is keyed
+        // purely off the caller's verified credential subject -- there's no participantDid
+        // parameter to spoof anymore (see FilterRequest's javadoc for why).
         var attackerMembershipVc = createVc(MEMBERSHIP_CREDENTIAL_TYPE, Map.of("participantId", "did:web:attacker"), "did:web:attacker");
         var domainVc = createVc(DOMAIN_CREDENTIAL_TYPE, Map.of("domain", "route"), "did:web:attacker");
         ClaimToken attackerTokens = ClaimToken.Builder.newInstance().claim("vc", List.of(attackerMembershipVc, domainVc)).build();
 
-        var result = service.filterCatalog(rawCatalogs, service.createContext(attackerTokens), SUBJECT);
+        var result = service.filterCatalog(rawCatalogs, service.createContext(attackerTokens));
 
         boolean visible = result.stream()
                 .flatMap(c -> c.getDatasets().stream())
                 .anyMatch(d -> d.getId().equals("self-view-restricted-travel-asset"));
-        assertFalse(visible, "A client-supplied participantDid that doesn't match the caller's own " +
-                "verified identity must never trigger the self-view bypass");
+        assertFalse(visible, "An attacker's own credentials must never trigger another participant's self-view bypass");
     }
 
     @Test
@@ -285,7 +283,7 @@ public class FederatedCatalogFilterServiceTest {
         ClaimToken tokens = ClaimToken.Builder.newInstance().claim("vc", credentials).build();
 
         // When: the federated catalog is fetched and filtered for a participant with valid credentials
-        Collection<Catalog> result = service.fetchAndFilterCatalog(tokens, PARTICIPANT_DID);
+        Collection<Catalog> result = service.fetchAndFilterCatalog(tokens);
 
         // Then: the resulting catalog list is empty, no assets are available after policy filtering
         assertTrue(result.isEmpty(), "Expected an empty catalog list when the Authority has no published assets");

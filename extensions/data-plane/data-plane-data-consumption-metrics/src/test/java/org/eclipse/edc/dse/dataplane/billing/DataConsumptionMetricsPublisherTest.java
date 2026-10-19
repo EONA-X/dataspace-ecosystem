@@ -7,7 +7,6 @@ import jakarta.ws.rs.ext.WriterInterceptorContext;
 import org.eclipse.dse.edc.spi.telemetryagent.DataConsumptionRecord;
 import org.eclipse.dse.edc.spi.telemetryagent.TelemetryRecordStore;
 import org.eclipse.edc.spi.telemetry.Telemetry;
-import org.eclipse.edc.web.spi.exception.InvalidRequestException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -20,8 +19,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.eclipse.edc.dse.dataplane.billing.DataConsumptionMetricsPublisher.CONTRACT_ID_HEADER;
 import static org.eclipse.edc.dse.dataplane.billing.DataConsumptionMetricsPublisher.TRACE_PARENT_HEADER;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -98,15 +95,19 @@ class DataConsumptionMetricsPublisherTest {
     }
 
     @Test
-    void filter_missingContractId_throws() {
+    void filter_missingContractId_skipsBillingWithoutThrowing() {
+        // A request rejected before a contract was ever resolved (missing/invalid auth, bad
+        // input, ...) never carries a Contract-Id — this filter runs on every response,
+        // including those, and must not clobber an already-built error response (e.g. a
+        // clean 401) with a 500 of its own.
         when(responseContext.getEntity()).thenReturn("response-entity");
-        when(responseContext.getStatus()).thenReturn(200);
+        when(responseContext.getStatus()).thenReturn(401);
         when(requestContext.getHeaderString(CONTRACT_ID_HEADER)).thenReturn(null);
 
-        var exception = assertThrows(InvalidRequestException.class, () -> publisher.filter(requestContext, responseContext));
+        publisher.filter(requestContext, responseContext);
 
-        assertEquals("Missing '%s' header in request".formatted(CONTRACT_ID_HEADER), exception.getMessage());
         verify(telemetryRecordStore, never()).save(any());
+        verify(requestContext, never()).setProperty(any(), any());
     }
 
     @Test
@@ -124,6 +125,25 @@ class DataConsumptionMetricsPublisherTest {
         assertThat(record.getTraceContext()).isEqualTo(traceContext);
         assertThat(record.getParticipantId()).isEqualTo(PARTICIPANT_ID);
         assertThat(record.getResponseStatusCode()).isEqualTo(200);
+    }
+
+    @Test
+    void aroundWriteTo_noPropertiesSet_skipsBillingWithoutThrowing() throws IOException {
+        // filter() never set billing.* when it skipped a Contract-Id-less request (see
+        // filter_missingContractId_skipsBillingWithoutThrowing) -- aroundWriteTo still runs for
+        // any response with a body, so it must not unbox a null billing.status into an NPE here.
+        WriterInterceptorContext writerContext = mock();
+        when(writerContext.getProperty("billing.contractId")).thenReturn(null);
+        when(writerContext.getEntity()).thenReturn((StreamingOutput) out -> out.write("unauthorized".getBytes()));
+        when(writerContext.getOutputStream()).thenReturn(OutputStream.nullOutputStream());
+        doAnswer(inv -> {
+            ((StreamingOutput) writerContext.getEntity()).write(OutputStream.nullOutputStream());
+            return null;
+        }).when(writerContext).proceed();
+
+        publisher.aroundWriteTo(writerContext);
+
+        verify(telemetryRecordStore, never()).save(any());
     }
 
     @Test

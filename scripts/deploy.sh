@@ -11,6 +11,7 @@ MANDATORY_INCLUDE=""
 MANDATORY_EXCLUDE="kafka-bundle"
 INCLUDE_REGEX=""
 EXCLUDE_REGEX=""
+SKIP_ARGOCD_SYNC=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -23,6 +24,11 @@ while [ $# -gt 0 ]; do
     --helm-values-path) HELM_VALUES_PATH="$2"; shift 2 ;;
     --include) INCLUDE_REGEX="$(echo "$2" | tr ',' '|')"; shift 2 ;;
     --exclude) EXCLUDE_REGEX="$(echo "$2" | tr ',' '|')"; shift 2 ;;
+    # lourmel-e2e's ArgoCD isn't reachable from this script's runner (generic runner has
+    # internet+registry access, not the private VM network) -- a separate job on the
+    # lourmel-tagged runner does its own refresh+health-wait afterward. Everything else
+    # here (git push with retry/rebase) is still wanted for e2e.
+    --skip-argocd-sync) SKIP_ARGOCD_SYNC="true"; shift ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -90,6 +96,10 @@ while [ "${attempt}" -le "${MAX_PUSH_ATTEMPTS}" ]; do
     exit 1
   fi
 done
+
+if [ "${SKIP_ARGOCD_SYNC}" = "true" ]; then
+  exit 0
+fi
 
 argocd login "${ARGOCD_HOST_DEV}" --username admin --password "${ARGOCD_ADMIN_PASSWORD_DEV}"
 if [ -n "${ARGOCD_APP}" ]; then

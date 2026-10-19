@@ -13,3 +13,20 @@
       - cache/wrapper/
     policy: $CACHE_POLICY
   interruptible: true
+
+# Shared dind setup for deploy:docker-push and test:e2e-build-push-deploy. rules/needs/
+# resource_group/gradle scope stay per-job -- those differ for real reasons.
+.docker-build-push:
+  extends: .gradle
+  services:
+    - name: ${REGISTRY_DIND_IMAGE}
+      alias: docker
+      command: ["--tls=false"]
+  variables:
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+    DOCKER_CONFIG: "./gradle"
+    CACHE_POLICY: "pull"
+  before_script:
+    - mkdir -p ./gradle && echo "$DOCKER_AUTH_CONFIG_DEV" > ./gradle/config.json

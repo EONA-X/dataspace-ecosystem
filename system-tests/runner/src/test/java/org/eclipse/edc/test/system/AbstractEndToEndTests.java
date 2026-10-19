@@ -19,8 +19,7 @@ import java.util.function.Predicate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.eclipse.edc.connector.controlplane.transfer.spi.types.TransferProcessStates.STARTED;
-import static org.eclipse.edc.jsonld.spi.JsonLdKeywords.VALUE;
-import static org.eclipse.edc.jsonld.spi.Namespaces.DSPACE_SCHEMA;
+import static org.eclipse.edc.jsonld.spi.JsonLdKeywords.ID;
 import static org.eclipse.edc.jsonld.spi.PropertyAndTypeNames.DCAT_DATASET_ATTRIBUTE;
 import static org.eclipse.edc.test.system.TestConstants.DEFAULT_TIMEOUT;
 
@@ -33,6 +32,11 @@ public class AbstractEndToEndTests {
     private static final JsonLd JSON_LD = new TitaniumJsonLd(MONITOR);
     private static final Duration TEST_POLL_INTERVAL = Duration.ofMillis(500);
     public static final String HTTP_DATA_PULL = "HttpData-PULL";
+    // The federated-catalog crawler (federated-catalog-core-2025, the only module that
+    // registers a working crawler in 0.15.0) serializes Catalog#participantId under the
+    // DSP 2025/1 namespace, not DSPACE_SCHEMA (still v0.8 upstream, see Namespaces.java) --
+    // confirmed live on lourmel-e2e.
+    private static final String DSPACE_SCHEMA_2025_1 = "https://w3id.org/dspace/2025/1/";
 
     protected static final List<String> PARTICIPANT_NAMES = List.of("authority", "provider", "consumer");
     protected static final List<String> ASSET_OWNING_PARTICIPANTS = List.of("provider", "consumer");
@@ -155,9 +159,9 @@ public class AbstractEndToEndTests {
     }
 
     private static Predicate<JsonObject> isCatalogOf(String did) {
-        return catalog -> catalog.getJsonArray(DSPACE_SCHEMA + "participantId")
+        return catalog -> catalog.getJsonArray(DSPACE_SCHEMA_2025_1 + "participantId")
                 .stream()
-                .allMatch(jsonValue -> did.equals(jsonValue.asJsonObject().getString(VALUE)));
+                .allMatch(jsonValue -> did.equals(jsonValue.asJsonObject().getString(ID)));
     }
 
 

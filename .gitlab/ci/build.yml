@@ -2,7 +2,9 @@ build:compile:
   extends: .gradle
   stage: build
   rules:
-    - if: $CI_COMMIT_BRANCH == "main"
+    # Excludes schedule: the lourmel-e2e cron only needs test:e2e-build-push-deploy + test:e2e
+    # (see test.yml), not a full main-branch build/test/deploy pass.
+    - if: $CI_COMMIT_BRANCH == "main" && $CI_PIPELINE_SOURCE != "schedule"
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   variables:
     CACHE_POLICY: "pull-push"
@@ -20,7 +22,7 @@ build:openapi:
   extends: .gradle
   stage: build
   rules:
-    - if: $CI_COMMIT_REF_NAME == "main"
+    - if: $CI_COMMIT_REF_NAME == "main" && $CI_PIPELINE_SOURCE != "schedule"
   needs: [build:compile]
   script:
     - |

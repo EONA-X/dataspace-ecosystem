@@ -56,28 +56,28 @@ public class FederatedCatalogService {
         this.jsonLd = jsonLd;
     }
 
-    public Collection<Catalog> fetchAndFilterCatalog(ClaimToken participantVcs, String participantDid) throws Exception {
+    public Collection<Catalog> fetchAndFilterCatalog(ClaimToken participantVcs) throws Exception {
         CatalogDiscoveryPolicyContext policyContext = createContext(participantVcs);
         Collection<Catalog> catalogs = retrieveCatalog();
         if (catalogs == null || catalogs.isEmpty()) {
             monitor.warning("No catalogs retrieved from the remote source");
             return Collections.emptyList();
         }
-        return filterCatalog(catalogs, policyContext, participantDid);
+        return filterCatalog(catalogs, policyContext);
     }
 
-    protected Collection<Catalog> filterCatalog(Collection<Catalog> catalogs, CatalogDiscoveryPolicyContext policyContext, String participantDid) {
+    protected Collection<Catalog> filterCatalog(Collection<Catalog> catalogs, CatalogDiscoveryPolicyContext policyContext) {
         Collection<Catalog> filteredCatalogs = new ArrayList<>();
         for (Catalog catalog : catalogs) {
             if (catalog == null) {
                 monitor.warning("Encountered null catalog entry, skipping");
                 continue;
             }
-            // Self-view bypass: a participant sees 100% of what it itself published.
-            // Compares against the caller's verified identity, not the client-supplied
-            // participantDid -- that field isn't checked against the caller's credentials
-            // (see IdentityServiceValidator.validate()), so trusting it would let any
-            // participant see another's restricted catalog by passing that DID.
+            // Self-view bypass (confirmed intended behavior with techlead): a participant sees
+            // 100% of what it itself published, restricted-discovery policies included -- those
+            // restrictions govern what OTHER participants may discover, not the publisher's own
+            // view. Compared against the caller's verified MembershipCredential subject, not a
+            // client-supplied id, which would let anyone spoof another participant's view.
             if (catalog.getParticipantId() != null && catalog.getParticipantId().equals(resolveCallerDid(policyContext.participantAgent()))) {
                 filteredCatalogs.add(catalog);
                 continue;
