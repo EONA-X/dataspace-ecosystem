@@ -91,6 +91,31 @@ allprojects {
     }
 }
 
+// Single download of the OpenTelemetry agent, shared by every module's downloadOtel task.
+// Uses externalLibs/ when the jar is provided there, otherwise downloads it. Run "clean" to force a re-download.
+val fetchOtelAgent = tasks.register("fetchOtelAgent") {
+    val otelFileName = "opentelemetry-javaagent.jar"
+    val openTelemetryAgentUrl =
+        "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.9.0/$otelFileName"
+    val localAgent = rootDir.resolve("externalLibs").resolve(otelFileName)
+    val outputJar = layout.buildDirectory.file("otel/$otelFileName")
+
+    inputs.property("url", openTelemetryAgentUrl)
+    inputs.files(localAgent).optional()
+    outputs.file(outputJar)
+
+    doLast {
+        val dest = outputJar.get().asFile
+        dest.parentFile.mkdirs()
+        if (localAgent.exists()) {
+            localAgent.copyTo(dest, overwrite = true)
+        } else {
+            logger.lifecycle("Downloading OpenTelemetry Agent")
+            ant.invokeMethod("get", mapOf("src" to openTelemetryAgentUrl, "dest" to dest))
+        }
+    }
+}
+
 subprojects {
     afterEvaluate {
         val vaultType: String = project.findProperty("vaultType") as? String ?: "hashicorp"
@@ -108,54 +133,15 @@ subprojects {
             val otelFileName = "opentelemetry-javaagent.jar"
             val agentFileOnBuildDirectory = buildDir.resolve(otelFileName)
 
-            val openTelemetryAgentUrl =
-                "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.9.0/opentelemetry-javaagent.jar"
-
             val dockerContextDir = project.projectDir
             val dockerFile = file("$dockerContextDir/Dockerfile")
             val imageName = "${project.name}:latest"
 
-            val copyOtel = tasks.register("copyOtel") {
-                val agentFile = rootDir.resolve("externalLibs").resolve(otelFileName)
-                // Only execute if the opentelemetry agent exists in the root dir but not in build directory
-                onlyIf {
-                    agentFile.exists() && !agentFileOnBuildDirectory.exists()
-                }
-                // Ensure the build directory exists before copying
-                doFirst {
-                    buildDir.mkdirs()
-                }
-                // Copy the jar file
-                doLast {
-                    copy {
-                        from(agentFile)
-                        into(buildDir)
-                    }
-                }
-            }
-
-            val downloadOtel = tasks.create("downloadOtel") {
-                // Run after copyOtel to check if we still need to download
-                dependsOn(copyOtel)
-                // only execute task if the opentelemetry agent does not exist after copyOtel. invoke the "clean" task to force
-                onlyIf {
-                    !agentFileOnBuildDirectory.exists()
-                }
-                // this task could be the first in the graph, so "build/" may not yet exist. Let's be defensive
-                doFirst {
-                    project.layout.buildDirectory.asFile.get().mkdirs()
-                }
-                // download the jar file
-                doLast {
-                    val download = { url: String, destFile: File ->
-                        ant.invokeMethod(
-                            "get",
-                            mapOf("src" to url, "dest" to destFile)
-                        )
-                    }
-                    logger.lifecycle("Downloading OpenTelemetry Agent")
-                    download(openTelemetryAgentUrl, agentFileOnBuildDirectory)
-                }
+            // The agent is fetched once by the root project (fetchOtelAgent); each module only copies it.
+            val downloadOtel = tasks.register<Copy>("downloadOtel") {
+                dependsOn(rootProject.tasks.named("fetchOtelAgent"))
+                from(rootProject.tasks.named("fetchOtelAgent"))
+                into(buildDir)
             }
 
             val podmanTask = tasks.register("podmanize", Exec::class) {
