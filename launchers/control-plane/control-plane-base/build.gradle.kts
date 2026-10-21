@@ -6,6 +6,7 @@ dependencies {
     runtimeOnly(project(":extensions:common:vc-revocation-patch"))
     runtimeOnly(project(":extensions:common:policies"))
     runtimeOnly(project(":extensions:common:odrl-policy-did-validation"))
+    runtimeOnly(project(":extensions:control-plane:policy-definition-iri-right-operand"))
     runtimeOnly(project(":extensions:agreements"))
     runtimeOnly(project(":extensions:common:metrics:custom-micrometer"))
     runtimeOnly(project(":extensions:control-plane:asset-custom-property-subscriber"))
