@@ -100,17 +100,20 @@ val fetchOtelAgent = tasks.register("fetchOtelAgent") {
     // Override with -PotelAgentUrl=... to use a mirror when GitHub is unreachable from the runner.
     val openTelemetryAgentUrl = findProperty("otelAgentUrl")?.toString()
         ?: "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.9.0/$otelFileName"
+    // -PotelForceDownload ignores externalLibs/ and the up-to-date check, and downloads the agent again.
+    val forceDownload = hasProperty("otelForceDownload")
     val localAgent = rootDir.resolve("externalLibs").resolve(otelFileName)
     val outputJar = layout.buildDirectory.file("otel/$otelFileName")
 
     inputs.property("url", openTelemetryAgentUrl)
     inputs.files(localAgent).optional()
     outputs.file(outputJar)
+    outputs.upToDateWhen { !forceDownload }
 
     doLast {
         val dest = outputJar.get().asFile
         dest.parentFile.mkdirs()
-        if (localAgent.exists()) {
+        if (!forceDownload && localAgent.exists()) {
             localAgent.copyTo(dest, overwrite = true)
         } else {
             logger.lifecycle("Downloading OpenTelemetry Agent from $openTelemetryAgentUrl")
