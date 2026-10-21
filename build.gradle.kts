@@ -1,6 +1,8 @@
 import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
 import com.bmuschko.gradle.docker.tasks.image.DockerPushImage
 import com.github.jengelman.gradle.plugins.shadow.ShadowJavaPlugin
+import java.io.IOException
+import java.net.URI
 
 plugins {
     `java-library`
@@ -95,8 +97,9 @@ allprojects {
 // Uses externalLibs/ when the jar is provided there, otherwise downloads it. Run "clean" to force a re-download.
 val fetchOtelAgent = tasks.register("fetchOtelAgent") {
     val otelFileName = "opentelemetry-javaagent.jar"
-    val openTelemetryAgentUrl =
-        "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.9.0/$otelFileName"
+    // Override with -PotelAgentUrl=... to use a mirror when GitHub is unreachable from the runner.
+    val openTelemetryAgentUrl = findProperty("otelAgentUrl")?.toString()
+        ?: "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.9.0/$otelFileName"
     val localAgent = rootDir.resolve("externalLibs").resolve(otelFileName)
     val outputJar = layout.buildDirectory.file("otel/$otelFileName")
 
@@ -110,8 +113,21 @@ val fetchOtelAgent = tasks.register("fetchOtelAgent") {
         if (localAgent.exists()) {
             localAgent.copyTo(dest, overwrite = true)
         } else {
-            logger.lifecycle("Downloading OpenTelemetry Agent")
-            ant.invokeMethod("get", mapOf("src" to openTelemetryAgentUrl, "dest" to dest))
+            logger.lifecycle("Downloading OpenTelemetry Agent from $openTelemetryAgentUrl")
+            val maxAttempts = 5
+            for (attempt in 1..maxAttempts) {
+                try {
+                    val connection = URI(openTelemetryAgentUrl).toURL().openConnection()
+                    connection.connectTimeout = 30_000
+                    connection.readTimeout = 60_000
+                    connection.getInputStream().use { input -> dest.outputStream().use { input.copyTo(it) } }
+                    break
+                } catch (e: IOException) {
+                    logger.warn("OpenTelemetry Agent download attempt $attempt/$maxAttempts failed: $e")
+                    if (attempt == maxAttempts) throw GradleException("Cannot download $openTelemetryAgentUrl", e)
+                    Thread.sleep(attempt * 2000L)
+                }
+            }
         }
     }
 }
