@@ -160,6 +160,23 @@ Building the same images locally is unchanged:
 ./gradlew :launchers:control-plane:control-plane-postgresql-hashicorpvault:dockerize
 ```
 
+### 8.1 OpenTelemetry agent
+
+The images embed the OpenTelemetry Java agent (v2.9.0). The root task `fetchOtelAgent` provides it once
+for all modules, and each module's `downloadOtel` task copies it into its `build/` folder.
+
+- If `externalLibs/opentelemetry-javaagent.jar` exists, it is used as is and nothing is downloaded.
+  The jar is committed to the repository. When you change the agent version in `build.gradle.kts`,
+  replace this jar too.
+- Otherwise the agent is downloaded from GitHub (5 attempts, with timeouts) into `build/otel/`.
+
+Build properties:
+
+| Property | Effect |
+|---|---|
+| `-PotelAgentUrl=<url>` | Download the agent from another URL, e.g. an internal mirror |
+| `-PotelForceDownload` | Ignore `externalLibs/` and the up-to-date check, and download the agent again |
+
 ## 9. Contributing
 
 We welcome community feedback and engagement! Please read our [Contributing Guide](CONTRIBUTING.md) to understand our current contribution process and policies.
