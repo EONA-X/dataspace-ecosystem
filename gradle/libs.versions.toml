@@ -11,6 +11,7 @@ nimbus = "9.45"
 jackarta-json = "2.0.1"
 jackson = "2.18.2"
 rsApi = "4.0.0"
+annotationApi = "2.1.1"
 servletApi = "5.0.2"
 restAssured = "5.5.0"
 httpMockServer = "5.15.0"
@@ -182,7 +183,7 @@ assertj = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
 restAssured = { module = "io.rest-assured:rest-assured", version.ref = "restAssured" }
 jakarta-rsApi = { module = "jakarta.ws.rs:jakarta.ws.rs-api", version.ref = "rsApi" }
-jakarta-annotationApi = { module = "jakarta.annotation:jakarta.annotation-api", version = "2.1.1" }
+jakarta-annotationApi = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "annotationApi" }
 jakartaJson = { module = "org.glassfish:jakarta.json", version.ref = "jackarta-json" }
 jetty-jakarta-servletApi = { module = "org.eclipse.jetty.toolchain:jetty-jakarta-servlet-api", version.ref = "servletApi" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
