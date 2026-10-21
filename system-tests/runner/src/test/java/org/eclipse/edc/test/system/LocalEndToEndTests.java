@@ -63,6 +63,7 @@ import static org.eclipse.edc.connector.controlplane.transfer.spi.types.Transfer
 import static org.eclipse.edc.jsonld.spi.JsonLdKeywords.ID;
 import static org.eclipse.edc.spi.constants.CoreConstants.EDC_NAMESPACE;
 import static org.eclipse.edc.spi.core.CoreConstants.DSE_POLICY_PREFIX;
+import static org.eclipse.edc.spi.core.CoreConstants.DSE_POLICY_PROFILE_NS;
 import static org.eclipse.edc.test.system.AbstractAuthority.DOMAIN_ROUTE;
 import static org.eclipse.edc.test.system.AbstractAuthority.DOMAIN_TRAVEL;
 import static org.eclipse.edc.test.system.LocalConsumer.ASSET_ID_CONSUMER_REST_API;
@@ -79,6 +80,8 @@ import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERI
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_NONE_OF;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_GENERIC_NONE_OF_EXCLUDED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_OAUTH2;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_PROFILE_NS_NONE_OF;
+import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_PROFILE_NS_NONE_OF_EXCLUDED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_ROUTE_DOMAIN_RESTRICTED;
 import static org.eclipse.edc.test.system.LocalProvider.ASSET_ID_REST_API_TRAVEL_DOMAIN_RESTRICTED;
 import static org.eclipse.edc.test.system.LocalProvider.EMBEDDED_QUERY_PARAM;
@@ -282,6 +285,19 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 "proxyQueryParams", Boolean.TRUE.toString()
         ), genericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:isNoneOf", "['route','travel']"));
 
+        // #799: the same isNoneOf pair, with the left operand written as a full IRI in the stable ODRL profile namespace
+        // (the policy-definition @context still maps eox-policy to the legacy namespace, see AbstractParticipant)
+        PROVIDER.createEntry(ASSET_ID_REST_API_PROFILE_NS_NONE_OF, "Test Asset REST - stable profile namespace isNoneOf", "a basic REST API restricted by a stable-namespace GenericClaim isNoneOf constraint", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), profileGenericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:isNoneOf", "['travel']"));
+        PROVIDER.createEntry(ASSET_ID_REST_API_PROFILE_NS_NONE_OF_EXCLUDED, "Test Asset REST - stable profile namespace isNoneOf excluded", "stable-namespace GenericClaim isNoneOf deny-list containing the consumer domain", Map.of(
+                "type", "HttpData",
+                "baseUrl", "http://provider-backend:8080/api/provider/data",
+                "proxyQueryParams", Boolean.TRUE.toString()
+        ), profileGenericClaimConstraint(DOMAIN_CREDENTIAL_TYPE, "domain", "odrl:isNoneOf", "['route','travel']"));
+
         // api restricted to consumers whose MembershipCredential membership.membershipType equals 'Full';
         // every seeded participant actually holds 'FullMember' (AbstractAuthority.createParticipantMembershipAttestation()),
         // so this constraint is never satisfied and the negotiation must terminate.
@@ -390,6 +406,10 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 "baseUrl", "http://provider-backend:8080/api/provider/data",
                 "proxyQueryParams", Boolean.TRUE.toString()
         ));
+    }
+
+    private static JsonObject profileGenericClaimConstraint(String credentialType, String path, String operator, String rightOperand) {
+        return atomicConstraint("%s%s.$.%s.%s".formatted(DSE_POLICY_PROFILE_NS, GENERIC_CLAIM_CONSTRAINT, credentialType, path), operator, rightOperand);
     }
 
     private static JsonObject genericClaimConstraint(String credentialType, String path, String operator, String rightOperand) {
@@ -734,6 +754,29 @@ public class LocalEndToEndTests extends AbstractEndToEndTests {
                 assertThat(state).isEqualTo(ContractNegotiationStates.TERMINATED.name());
             });
             CONSUMER.participantClient().baseManagementRequest().get("/v3/contractnegotiations/" + negoId).then().statusCode(200);
+        }
+
+        @Test
+        void contract_negotiation_profile_namespace_is_none_of_success() {
+            // #799: same as contract_negotiation_generic_claim_is_none_of_success, with the left operand in the stable
+            // profile namespace (https://eona-x.eu/vocabulary/odrl-profile#). Creating the policy definition must not
+            // be rejected, and the negotiation must reach FINALIZED like its legacy-namespace twin.
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_PROFILE_NS_NONE_OF);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.FINALIZED.name());
+            });
+        }
+
+        @Test
+        void contract_negotiation_profile_namespace_is_none_of_fails() {
+            // #799: control for the test above. The deny-list contains 'route', the consumer's domain: the
+            // stable-namespace constraint must be evaluated (not dropped as unbound), so the negotiation is TERMINATED.
+            var negoId = CONSUMER.participantClient().initContractNegotiation(PROVIDER.participantClient(), ASSET_ID_REST_API_PROFILE_NS_NONE_OF_EXCLUDED);
+            await().atMost(TEST_TIMEOUT).untilAsserted(() -> {
+                var state = CONSUMER.participantClient().getContractNegotiationState(negoId);
+                assertThat(state).isEqualTo(ContractNegotiationStates.TERMINATED.name());
+            });
         }
 
         public static String getContractIdFromTransferProcess(AbstractParticipant consumer, String transferProcessId) {

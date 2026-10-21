@@ -9,12 +9,14 @@ import org.eclipse.edc.policy.model.Operator;
 import org.eclipse.edc.policy.model.Policy;
 import org.eclipse.edc.spi.core.MembershipTypes;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.eclipse.dse.iam.policy.CredentialsUtils.evaluateClaims;
 import static org.eclipse.dse.iam.policy.CredentialsUtils.getCredentialList;
 import static org.eclipse.dse.iam.policy.PolicyConstants.DSE_RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT;
 import static org.eclipse.dse.iam.policy.PolicyConstants.MEMBERSHIP_CREDENTIAL_TYPE;
+import static org.eclipse.dse.iam.policy.PolicyConstants.RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT;
 import static org.eclipse.edc.policy.model.Operator.EQ;
 
 /**
@@ -25,8 +27,17 @@ import static org.eclipse.edc.policy.model.Operator.EQ;
 public class NonFullMemberDefaultDenyValidator<C extends ParticipantAgentPolicyContext> implements PolicyValidatorRule<C> {
 
     static final String MEMBERSHIP_TYPE_PATH = "membership.membershipType";
+    /**
+     * The explicit allow left operand, legacy namespace.
+     */
     static final String ALLOWED_LEFT_OPERAND =
             "%s.$.%s.%s".formatted(DSE_RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT, MEMBERSHIP_CREDENTIAL_TYPE, MEMBERSHIP_TYPE_PATH);
+    /**
+     * The explicit allow left operand, in every accepted eox-policy namespace.
+     */
+    static final List<String> ALLOWED_LEFT_OPERANDS = PolicyConstants.termIris(RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT).stream()
+            .map(iri -> "%s.$.%s.%s".formatted(iri, MEMBERSHIP_CREDENTIAL_TYPE, MEMBERSHIP_TYPE_PATH))
+            .toList();
 
     @Override
     public Boolean apply(Policy policy, C context) {
@@ -69,6 +80,6 @@ public class NonFullMemberDefaultDenyValidator<C extends ParticipantAgentPolicyC
     private boolean isAllowConstraint(AtomicConstraint constraint) {
         Object left = constraint.getLeftExpression() instanceof LiteralExpression le ? le.getValue() : null;
         Object right = constraint.getRightExpression() instanceof LiteralExpression re ? re.getValue() : null;
-        return ALLOWED_LEFT_OPERAND.equals(left) && constraint.getOperator() == Operator.EQ && MembershipTypes.EXTERNAL.getName().equals(right);
+        return ALLOWED_LEFT_OPERANDS.contains(left) && constraint.getOperator() == Operator.EQ && MembershipTypes.EXTERNAL.getName().equals(right);
     }
 }

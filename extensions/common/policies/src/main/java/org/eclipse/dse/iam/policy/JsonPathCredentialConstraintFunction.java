@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.eclipse.dse.iam.policy.PolicyConstants.DSE_GENERIC_CLAIM_CONSTRAINT;
+import static org.eclipse.dse.iam.policy.PolicyConstants.GENERIC_CLAIM_CONSTRAINT;
 import static org.eclipse.edc.policy.model.Operator.EQ;
 import static org.eclipse.edc.policy.model.Operator.HAS_PART;
 import static org.eclipse.edc.policy.model.Operator.IN;
@@ -44,7 +44,8 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
             processedRightOperand = parsedRightOperand;
         }
 
-        var sanitizedLeftOperand = sanitizeLeftOperand((String) leftOperand, DSE_GENERIC_CLAIM_CONSTRAINT);
+        var termIri = PolicyConstants.claimTermIri(leftOperand, GENERIC_CLAIM_CONSTRAINT).orElseThrow();
+        var sanitizedLeftOperand = sanitizeLeftOperand((String) leftOperand, termIri);
         var parts = sanitizedLeftOperand.split("\\.");
         if (parts.length < 2) {
             policyContext.reportProblem("Left operand must contain at least two parts but were %s.".formatted(sanitizedLeftOperand));
@@ -81,7 +82,7 @@ public class JsonPathCredentialConstraintFunction<C extends ParticipantAgentPoli
 
     @Override
     public boolean canHandle(Object leftOperand) {
-        return (leftOperand instanceof String) && ((String) leftOperand).startsWith("%s.$".formatted(DSE_GENERIC_CLAIM_CONSTRAINT));
+        return PolicyConstants.claimTermIri(leftOperand, GENERIC_CLAIM_CONSTRAINT).isPresent();
     }
 
 

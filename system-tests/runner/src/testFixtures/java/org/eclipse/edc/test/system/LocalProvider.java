@@ -22,6 +22,8 @@ public class LocalProvider extends AbstractParticipant {
     public static final String ASSET_ID_REST_API_GENERIC_EQ_FULL_MEMBER = "rest-api-generic-eq-full-member";
     public static final String ASSET_ID_REST_API_GENERIC_NONE_OF = "rest-api-generic-none-of";
     public static final String ASSET_ID_REST_API_GENERIC_NONE_OF_EXCLUDED = "rest-api-generic-none-of-excluded";
+    public static final String ASSET_ID_REST_API_PROFILE_NS_NONE_OF = "rest-api-profile-ns-none-of";
+    public static final String ASSET_ID_REST_API_PROFILE_NS_NONE_OF_EXCLUDED = "rest-api-profile-ns-none-of-excluded";
 
     @Override
     protected String name() {

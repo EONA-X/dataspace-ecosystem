@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static org.eclipse.dse.iam.policy.PolicyConstants.DSE_RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT;
+import static org.eclipse.dse.iam.policy.PolicyConstants.RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT;
 import static org.eclipse.edc.policy.model.Operator.EQ;
 import static org.eclipse.edc.policy.model.Operator.HAS_PART;
 import static org.eclipse.edc.policy.model.Operator.IN;
@@ -46,7 +46,8 @@ public class CatalogDiscoveryConstraintFunction<C extends ParticipantAgentPolicy
             processedRightOperand = rightOperand;
         }
 
-        var sanitizedLeftOperand = sanitizeLeftOperand((String) leftOperand, DSE_RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT);
+        var termIri = PolicyConstants.claimTermIri(leftOperand, RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT).orElseThrow();
+        var sanitizedLeftOperand = sanitizeLeftOperand((String) leftOperand, termIri);
         var parts = sanitizedLeftOperand.split("\\.");
         if (parts.length < 2) {
             policyContext.reportProblem("Left operand must contain at least two parts but was '%s'.".formatted(sanitizedLeftOperand));
@@ -81,7 +82,7 @@ public class CatalogDiscoveryConstraintFunction<C extends ParticipantAgentPolicy
 
     @Override
     public boolean canHandle(Object leftOperand) {
-        return (leftOperand instanceof String) && ((String) leftOperand).startsWith("%s.$".formatted(DSE_RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT));
+        return PolicyConstants.claimTermIri(leftOperand, RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT).isPresent();
     }
 
     public static List<String> parseToList(Object input) {

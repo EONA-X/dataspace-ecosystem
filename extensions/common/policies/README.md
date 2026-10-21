@@ -6,6 +6,7 @@ EDC extension providing DSE-specific ODRL constraint functions (membership, gene
 
 - [Overview](#overview)
 - [Problem it Solves](#problem-it-solves)
+- [Namespaces](#namespaces)
 - [How It Works](#how-it-works)
 - [Architecture](#architecture)
 - [Usage](#usage)
@@ -25,6 +26,23 @@ Eclipse EDC's ODRL policy engine ships generic operators (`EQ`, `HAS_PART`, ...)
 - EDC's IATP/DCP `RequestPolicyContext` scope derivation only requests VC types it can infer are referenced by policy content; DSE's constraints use custom namespaced left-operands (`eox-policy:GenericClaim...`) that upstream doesn't parse for scope inference, so without a patch the presentation request would never actually ask the holder for the credential the constraint needs to evaluate.
 - A claim value isn't always a real `List` by the time it reaches evaluation (JSON-LD singleton-list compaction, or an upstream serialization bug, see [#595](https://gitlab.eona-x.org/eona-x/backlog/-/issues/595)) — `HAS_PART` has to work against both shapes without conflating a genuine single-value claim with a broken multi-value one.
 
+## Namespaces
+
+The `eox-policy` left operands are accepted under two namespaces, with the same functions, the same scope bindings and the same semantics:
+
+| Namespace | Status | Constant (`CoreConstants`) |
+|---|---|---|
+| `https://eona-x.eu/vocabulary/odrl-profile#` | **stable** — the Eona-X ODRL profile namespace ([EONA-X/eona-vocabularies-reference#13](https://github.com/EONA-X/eona-vocabularies-reference/pull/13)); the `eox-policy` JSON-LD prefix expands to it | `DSE_POLICY_PROFILE_NS` |
+| `https://w3id.org/eonax/policy/` | **legacy** — still carried by stored policy definitions and live contract agreements; migrated by [#995](https://gitlab.eona-x.org/eona-x/backlog/-/issues/995), dropped by [#996](https://gitlab.eona-x.org/eona-x/backlog/-/issues/996) | `DSE_POLICY_NS` |
+
+`CoreConstants.DSE_POLICY_NAMESPACES` lists both (stable first). Profile releases are identified by their `owl:versionIRI` (`https://eona-x.eu/vocabulary/odrl-profile/v0.0.N#`), never by the namespace: the connector matches left-operand IRIs literally, so a namespace that moved with each release (or a `latest` alias) would silently change the meaning of stored policies.
+
+So `https://eona-x.eu/vocabulary/odrl-profile#GenericClaim.$.DomainCredential.domain` and `https://w3id.org/eonax/policy/GenericClaim.$.DomainCredential.domain` are the same constraint. `PolicyConstants.termIris(term)` gives a term's IRIs; the claim-path functions strip whichever `<namespace><term>.$.` prefix the left operand was written with (`PolicyConstants.claimTermIri`), so the claim path is the same in both cases.
+
+Only the stable namespace has a registered JSON-LD prefix. None is registered for the legacy one: stored policies hold expanded IRIs, and a client still writing legacy terms either sends its own `@context` (e.g. `"eox-policy": "https://w3id.org/eonax/policy/"`, as the Eona-X portal and the system tests do) or full IRIs — both keep working. A client that relied on the connector's default `eox-policy` prefix now writes stable-namespace IRIs, which are evaluated the same way. In compacted responses, legacy IRIs are no longer shortened to `eox-policy:...`.
+
+Both namespaces must be bound: EDC's `ScopeFilter` drops a constraint whose left operand is not bound in the evaluated scope, i.e. an unbound restriction is **permitted**, and EDC's policy validation (run when a policy definition is created) rejects it with `leftOperand '...' is not bound to any scopes`.
+
 ## How It Works
 
 Three constraint functions, all extending `AbstractDynamicCredentialConstraintFunction` (a thin base delegating to `CredentialsUtils` — the module's shared, static-method-only home for `getCredentialList` — reads the `"vc"` claim off the `ParticipantAgent`, i.e. the credentials already verified and attached earlier in the request pipeline — plus `parseListEncodedClaim`, `evaluateClaims`/`evaluateField`/`evaluateCollectionField`, `sanitizeClaims`, and `sanitizeLeftOperand`, used by the two claim-path-based functions below and, directly, by `NonFullMemberDefaultDenyValidator`):
@@ -37,7 +55,7 @@ For any claim value that is a `String`, `CredentialsUtils.evaluateClaims` (used 
 
 `IS_NONE_OF` (`odrl:isNoneOf`) is the deny-list counterpart of `IN` (`odrl:isPartOf`), and takes the same right-operand forms (a `List`, or an array string such as `['a','b']`). On a scalar claim it passes when the value is not in the list; on a list claim it passes when the two are disjoint (no value of the claim is in the list), e.g. `eox-policy:GenericClaim.$.MembershipCredential.groups` `odrl:isNoneOf` `['SANCTIONED']`. Like every other operator it fails closed: a missing credential or claim, or an empty right-operand list, does not satisfy the constraint.
 
-**`NonFullMemberDefaultDenyValidator`** is a `PolicyValidatorRule<C>` (not a constraint function — pre-evaluation gate registered via `PolicyEngine.registerPreValidator`, since a constraint function only runs when a policy's leftOperand matches, and this needs to deny when a constraint is *absent*). It inverts the default outcome for non-`FullMember` participants: a dataset's policy implicitly allows any participant satisfying it unless this rule denies first. `membershipType == "FullMember"` → unaffected. `membershipType` present and not `"FullMember"` → denied unless the dataset's policy declares a top-level `AtomicConstraint` `eox-policy:RestrictedDiscoveryClaim.$.MembershipCredential.membership.membershipType EQ "<that type>"` (a constraint nested in a `MultiplicityConstraint`, or using any other operator, doesn't count). No `MembershipCredential` presented at all → hard-denied, allow never overrides this. Registered against `CatalogDiscoveryPolicyContext`, `ContractNegotiationPolicyContext`, and `TransferProcessPolicyContext` in `PolicyEvaluationExtension.registerPreValidators()` — deliberately not against `CatalogPolicyContext`/`CATALOG_SCOPE` (see the `CatalogDiscoveryConstraintFunction` scope-binding note above) and not wired into `IatpPatchExtension`.
+**`NonFullMemberDefaultDenyValidator`** is a `PolicyValidatorRule<C>` (not a constraint function — pre-evaluation gate registered via `PolicyEngine.registerPreValidator`, since a constraint function only runs when a policy's leftOperand matches, and this needs to deny when a constraint is *absent*). It inverts the default outcome for non-`FullMember` participants: a dataset's policy implicitly allows any participant satisfying it unless this rule denies first. `membershipType == "FullMember"` → unaffected. `membershipType` present and not `"FullMember"` → denied unless the dataset's policy declares a top-level `AtomicConstraint` `eox-policy:RestrictedDiscoveryClaim.$.MembershipCredential.membership.membershipType EQ "<that type>"` (a constraint nested in a `MultiplicityConstraint`, or using any other operator, doesn't count). The allow constraint is recognised in both namespaces. No `MembershipCredential` presented at all → hard-denied, allow never overrides this. Registered against `CatalogDiscoveryPolicyContext`, `ContractNegotiationPolicyContext`, and `TransferProcessPolicyContext` in `PolicyEvaluationExtension.registerPreValidators()` — deliberately not against `CatalogPolicyContext`/`CATALOG_SCOPE` (see the `CatalogDiscoveryConstraintFunction` scope-binding note above) and not wired into `IatpPatchExtension`.
 
 Separately, `IatpPatchExtension` registers a `DefaultScopeExtractor` post-validator on every relevant `RequestPolicyContext` (catalog, negotiation, transfer, catalog-discovery, telemetry), forcing the DCP presentation request to always ask for `VerifiableCredential:read` — without this, a participant presenting only the VC types upstream's own scope inference decided to ask for might never hand over the `MembershipCredential`/`groups` claim these constraint functions need.
 
@@ -60,7 +78,7 @@ extensions/common/policies/
 │       ├── CatalogDiscoveryPolicyContext.java    # PolicyContext + CATALOG_DISCOVERY_SCOPE, used by federated-catalog-filter
 │       ├── CredentialTypePredicate.java          # Predicate<VerifiableCredential> matching by type suffix
 │       ├── NonFullMemberDefaultDenyValidator.java  # PolicyValidatorRule: default-deny non-FullMember participants unless allowed
-│       ├── PolicyConstants.java                  # DSE policy namespace constant strings
+│       ├── PolicyConstants.java                  # eox-policy terms, their IRIs in both namespaces (termIris, claimTermIri)
 │       └── PolicyEvaluationExtension.java        # ServiceExtension: registers namespace, functions, scope bindings, pre-validators
 ├── src/main/resources/META-INF/services/
 │   └── org.eclipse.edc.spi.system.ServiceExtension   # IatpPatchExtension, PolicyEvaluationExtension
@@ -72,6 +90,8 @@ Dependencies (`build.gradle.kts`): `spi/common-spi`, `spi/telemetry-service-spi`
 ## Usage
 
 Three policy shapes:
+
+The examples use the compact `eox-policy:` form: with the connector's default context it expands to the stable namespace; with a request `@context` mapping `eox-policy` to the legacy namespace it expands to the legacy one. Both are accepted (see [Namespaces](#namespaces)).
 
 **Membership (any active member):**
 ```json
@@ -207,7 +227,8 @@ Decode the returned `rawVc` (JWT, 2nd `.`-separated base64 segment) and confirm 
 
 - `CredentialsUtils`-level coverage lives inside each caller's own test class (no direct test of the utility class in isolation).
 - `MembershipConstraintFunctionTest`, `CredentialTypePredicateTest`, `DefaultScopeExtractorTest`, `PolicyEvaluationExtensionTest`, `NonFullMemberDefaultDenyValidatorTest` — one test class per remaining class.
-- `JsonPathCredentialConstraintFunctionTest` / `CatalogDiscoveryConstraintFunctionTest` — parameterized `evaluate` matrix (EQ/NEQ/IN/HAS_PART/IS_NONE_OF, namespaced claim keys, nested paths) plus dedicated cases for: scalar `HAS_PART` (JSON-LD singleton collapse), list `HAS_PART`, Postgres array-literal string claim, JSON array string claim, empty list-encoded string. The two production classes still differ in their `IN` right-operand parsing (`CatalogDiscoveryConstraintFunction.parseToList` vs `JsonPathCredentialConstraintFunction.parseRightOperandForInOperator`/`parseArrayString`) and left-operand namespace constant, but the claim-evaluation core (`evaluateClaims`/`evaluateField`/`evaluateCollectionField`/`sanitizeClaims`/`sanitizeLeftOperand`) that used to be duplicated between them now lives once in `CredentialsUtils` — the two test classes still test it independently through each subclass's `evaluate`.
+- `JsonPathCredentialConstraintFunctionTest` / `CatalogDiscoveryConstraintFunctionTest` — parameterized `evaluate` matrix (EQ/NEQ/IN/HAS_PART/IS_NONE_OF, namespaced claim keys, nested paths) plus dedicated cases for: scalar `HAS_PART` (JSON-LD singleton collapse), list `HAS_PART`, Postgres array-literal string claim, JSON array string claim, empty list-encoded string. The two production classes still differ in their `IN` right-operand parsing (`CatalogDiscoveryConstraintFunction.parseToList` vs `JsonPathCredentialConstraintFunction.parseRightOperandForInOperator`/`parseArrayString`) and left-operand term (`GENERIC_CLAIM_CONSTRAINT` vs `RESTRICTED_CATALOG_DISCOVERY_CONSTRAINT`, both resolved in every namespace via `PolicyConstants.claimTermIri`), but the claim-evaluation core (`evaluateClaims`/`evaluateField`/`evaluateCollectionField`/`sanitizeClaims`/`sanitizeLeftOperand`) that used to be duplicated between them now lives once in `CredentialsUtils` — the two test classes still test it independently through each subclass's `evaluate`.
+- `StablePolicyNamespaceTest` (#799) — every case under both namespaces, the stable result compared with its legacy twin: the three functions' `canHandle`/`evaluate`, the scope bindings, a real `PolicyEngineImpl` + `RuleBindingRegistryImpl` wired by `PolicyEvaluationExtension` (catalog, negotiation, transfer and catalog-discovery scopes), policy validation (stable left operands accepted, unknown terms still rejected), the `NonFullMemberDefaultDenyValidator` allow constraint, and the `eox-policy` prefix.
 - `NonFullMemberDefaultDenyValidatorTest` — calls `apply(Policy, C)` directly against fixture `ParticipantAgent`/`Policy`/VC data (same seam style as the constraint-function tests, no live `PolicyEngine`/DCP presentation); covers FullMember with/without allow, non-FullMember with matching/non-matching (wrong operator, wrong value, nested in a `MultiplicityConstraint`) allow, no-`MembershipCredential` with/without allow, and a malformed `vc` claim.
 
 ```bash

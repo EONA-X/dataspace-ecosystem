@@ -17,4 +17,5 @@ dependencies {
     implementation(libs.edc.lib.util)
     api(project(":spi:federated-catalog-filter-spi"))
     testImplementation(libs.edc.core.junit)
+    testImplementation(libs.edc.spi.policy.engine.lib)
 }
