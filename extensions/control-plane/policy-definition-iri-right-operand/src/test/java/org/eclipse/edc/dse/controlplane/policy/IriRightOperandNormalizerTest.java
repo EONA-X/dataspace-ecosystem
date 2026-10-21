@@ -126,6 +126,70 @@ class IriRightOperandNormalizerTest {
     }
 
     @Test
+    void arrayOfIriRightOperands_withIsNoneOf_isRewrittenItemByItem() {
+        var policy = parse("""
+                {
+                  "@id": "blocklist",
+                  "@type": ["https://w3id.org/edc/v0.0.1/ns/PolicyDefinition"],
+                  "https://w3id.org/edc/v0.0.1/ns/policy": [{
+                    "@type": ["http://www.w3.org/ns/odrl/2/Set"],
+                    "http://www.w3.org/ns/odrl/2/prohibition": [{
+                      "http://www.w3.org/ns/odrl/2/action": [{"@id": "http://www.w3.org/ns/odrl/2/use"}],
+                      "http://www.w3.org/ns/odrl/2/constraint": [{
+                        "http://www.w3.org/ns/odrl/2/leftOperand": [{"@id": "https://w3id.org/eonax/policy/Membership"}],
+                        "http://www.w3.org/ns/odrl/2/operator": [{"@id": "http://www.w3.org/ns/odrl/2/isNoneOf"}],
+                        "http://www.w3.org/ns/odrl/2/rightOperand": [
+                          {"@id": "https://provider.example/party/a"},
+                          {"@id": "https://provider.example/party/b"},
+                          {"@id": "https://provider.example/party/c"}
+                        ]
+                      }]
+                    }]
+                  }]
+                }
+                """);
+
+        var constraint = firstConstraint(IriRightOperandNormalizer.normalize(policy), "prohibition");
+
+        var rightOperands = constraint.getJsonArray(ODRL + "rightOperand");
+        assertThat(rightOperands).hasSize(3);
+        assertThat(rightOperands).containsExactly(
+                typedIri("https://provider.example/party/a"),
+                typedIri("https://provider.example/party/b"),
+                typedIri("https://provider.example/party/c"));
+        assertThat(constraint.getJsonArray(ODRL + "operator").getJsonObject(0).getString("@id"))
+                .isEqualTo(ODRL + "isNoneOf");
+    }
+
+    @Test
+    void arrayOfIriRightOperands_withIsNoneOf_passesEdcValidationOnlyOnceNormalized() {
+        var policy = parse("""
+                {
+                  "@id": "blocklist",
+                  "@type": ["https://w3id.org/edc/v0.0.1/ns/PolicyDefinition"],
+                  "https://w3id.org/edc/v0.0.1/ns/policy": [{
+                    "@type": ["http://www.w3.org/ns/odrl/2/Set"],
+                    "http://www.w3.org/ns/odrl/2/prohibition": [{
+                      "http://www.w3.org/ns/odrl/2/action": [{"@id": "http://www.w3.org/ns/odrl/2/use"}],
+                      "http://www.w3.org/ns/odrl/2/constraint": [{
+                        "http://www.w3.org/ns/odrl/2/leftOperand": [{"@id": "https://w3id.org/eonax/policy/Membership"}],
+                        "http://www.w3.org/ns/odrl/2/operator": [{"@id": "http://www.w3.org/ns/odrl/2/isNoneOf"}],
+                        "http://www.w3.org/ns/odrl/2/rightOperand": [
+                          {"@id": "https://provider.example/party/a"},
+                          {"@id": "https://provider.example/party/b"}
+                        ]
+                      }]
+                    }]
+                  }]
+                }
+                """);
+
+        assertThatThrownBy(() -> PolicyDefinitionValidator.instance().validate(policy))
+                .isInstanceOf(NullPointerException.class);
+        assertThat(PolicyDefinitionValidator.instance().validate(IriRightOperandNormalizer.normalize(policy)).succeeded()).isTrue();
+    }
+
+    @Test
     void idOutsideRightOperand_isLeftUntouched() {
         var policy = parse(IRI_RIGHT_OPERAND_POLICY);
 
@@ -135,6 +199,13 @@ class IriRightOperandNormalizerTest {
                 .isEqualTo("https://w3id.org/eonax/policy/acceptedTerms");
         assertThat(constraint.getJsonArray(ODRL + "operator").getJsonObject(0).getString("@id"))
                 .isEqualTo(ODRL + "eq");
+    }
+
+    private static JsonObject typedIri(String iri) {
+        return Json.createObjectBuilder()
+                .add("@value", iri)
+                .add("@type", IriRightOperandNormalizer.XSD_ANY_URI)
+                .build();
     }
 
     private static JsonObject firstConstraint(JsonObject policyDefinition, String ruleKind) {
