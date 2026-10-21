@@ -157,10 +157,17 @@ subprojects {
             val imageName = "${project.name}:latest"
 
             // The agent is fetched once by the root project (fetchOtelAgent); each module only copies it.
-            val downloadOtel = tasks.register<Copy>("downloadOtel") {
-                dependsOn(rootProject.tasks.named("fetchOtelAgent"))
-                from(rootProject.tasks.named("fetchOtelAgent"))
-                into(buildDir)
+            // Declares only the jar as output (not the whole build dir) so it does not overlap with shadowJar's outputs.
+            val downloadOtel = tasks.register("downloadOtel") {
+                val fetchedAgent = rootProject.tasks.named("fetchOtelAgent")
+                dependsOn(fetchedAgent)
+                inputs.files(fetchedAgent)
+                outputs.file(agentFileOnBuildDirectory)
+                doLast {
+                    val source = fetchedAgent.get().outputs.files.singleFile
+                    agentFileOnBuildDirectory.parentFile.mkdirs()
+                    source.copyTo(agentFileOnBuildDirectory, overwrite = true)
+                }
             }
 
             val podmanTask = tasks.register("podmanize", Exec::class) {
